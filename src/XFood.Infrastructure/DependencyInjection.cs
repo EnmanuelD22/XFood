@@ -1,8 +1,10 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using XFood.Application.Modules.Donations;
 using XFood.Infrastructure.Persistence;
+using XFood.Infrastructure.Modules.Donations;
+using XFood.Infrastructure.Modules.Identity;
 using XFood.Infrastructure.Modules.Notifications;
 
 namespace XFood.Infrastructure;
@@ -23,9 +25,8 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString, sql =>
                 sql.MigrationsAssembly(typeof(XFoodDbContext).Assembly.GetName().Name)));
 
-        services.AddIdentityCore<IdentityUser<Guid>>()
-            .AddRoles<IdentityRole<Guid>>()
-            .AddEntityFrameworkStores<XFoodDbContext>();
+        services.AddIdentityModule(configuration);
+        services.AddScoped<IOrganizationOnboarding, OrganizationOnboarding>();
 
         services.AddOptions<ExpiryAlertOptions>()
             .Bind(configuration.GetSection(ExpiryAlertOptions.SectionName))

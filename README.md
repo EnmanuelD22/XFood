@@ -2,7 +2,7 @@
 
 Backend para conectar establecimientos con excedentes alimentarios, consumidores y organizaciones beneficiarias. Es un **monolito modular**: una API desplegable y una base SQL Server, con separación de Dominio, Aplicación, Infraestructura y presentación HTTP.
 
-Actualmente incluye el modelo de datos, migraciones, configuración técnica de Identity y pruebas. Los casos de uso, endpoints de negocio, autenticación de clientes y trabajadores de notificaciones aún deben implementarse. Flutter y React/Next.js son clientes previstos.
+Actualmente incluye el modelo de datos, migraciones, registro e inicio de sesión por rol (HU-04, sesión por cookie para el panel web) y pruebas. Los demás casos de uso, la autenticación de la app móvil y los trabajadores de notificaciones aún deben implementarse. Flutter y React/Next.js son clientes previstos.
 
 ## Tecnologías y requisitos
 
@@ -77,7 +77,7 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 
 - Vida del proceso: `https://localhost:7293/health/live` (no comprueba disponibilidad de SQL Server).
 - Documento OpenAPI JSON en Development: `https://localhost:7293/openapi/v1.json`.
-- No hay Swagger UI configurada ni endpoints de negocio. Las futuras rutas de negocio usarán `/api/v1`.
+- No hay Swagger UI configurada. Las rutas de negocio usan `/api/v1`; las de cuentas y sesión están descritas en `src/XFood.Application/Modules/Identity/README.md`.
 
 ## Pruebas
 
@@ -85,7 +85,7 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 dotnet test XFood.slnx --no-build
 ```
 
-Las 24 pruebas actuales inspeccionan el modelo y las migraciones sin conectarse a una base. Existe además una validación real opcional de SQL Server:
+`XFood.Architecture.Tests` inspecciona el modelo y las migraciones y `XFood.Api.Tests` prueba los casos de uso y el contrato HTTP de Identity; ninguna se conecta a una base. Existe además una validación real opcional de SQL Server:
 
 ```powershell
 ./tests/Validate-IsolatedSqlServer.ps1
