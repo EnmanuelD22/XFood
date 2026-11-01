@@ -63,6 +63,17 @@ public sealed class ListingStatusChange
     public DateTimeOffset OccurredAtUtc { get; set; }
 }
 
+/// <summary>Immutable before/after snapshot of editable listing details.</summary>
+public sealed class ListingRevision
+{
+    public Guid Id { get; set; }
+    public Guid ListingId { get; set; }
+    public Guid ActorUserId { get; set; }
+    public DateTimeOffset OccurredAtUtc { get; set; }
+    public string BeforeJson { get; set; } = null!;
+    public string AfterJson { get; set; } = null!;
+}
+
 public sealed class Category
 {
     public Guid Id { get; set; }

@@ -138,3 +138,22 @@ public sealed class ListingStatusChangeConfiguration : IEntityTypeConfiguration<
         MappingRules.Utc(b);
     }
 }
+
+public sealed class ListingRevisionConfiguration : IEntityTypeConfiguration<ListingRevision>
+{
+    public void Configure(EntityTypeBuilder<ListingRevision> b)
+    {
+        b.ToTable("ListingRevisions", "listings", t =>
+        {
+            t.HasCheckConstraint("CK_ListingRevisions_BeforeJson", "ISJSON([BeforeJson]) = 1");
+            t.HasCheckConstraint("CK_ListingRevisions_AfterJson", "ISJSON([AfterJson]) = 1");
+        });
+        MappingRules.GuidKey(b);
+        b.Property(x => x.BeforeJson).IsRequired();
+        b.Property(x => x.AfterJson).IsRequired();
+        b.HasOne<Listing>().WithMany().HasForeignKey(x => x.ListingId).OnDelete(DeleteBehavior.NoAction);
+        b.HasOne<IdentityUser<Guid>>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.NoAction);
+        b.HasIndex(x => new { x.ListingId, x.OccurredAtUtc });
+        MappingRules.Utc(b);
+    }
+}

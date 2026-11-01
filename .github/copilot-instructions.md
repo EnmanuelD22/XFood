@@ -1,5 +1,0 @@
-# Copilot Instructions
-
-## Directrices del proyecto
-- El usuario prefiere recibir toda la respuesta en un único bloque de texto continuo, sin bloques de código Markdown separados, sin tablas y sin dividir la respuesta en secciones que requieran copiarse individualmente. Si se muestra código, debe incluirse dentro del mismo texto indicando primero el archivo. Mantener nombres técnicos, rutas y fragmentos exactamente como aparecen en el proyecto. No modificar archivos ni ejecutar implementaciones durante revisiones.
-- Para HU-01 backend de XFood: respetar arquitectura Application/Infrastructure/API, reutilizar HU-04 e IEstablishmentOnboarding, exigir rol E y membresía activa para mutaciones privadas cuando esté definido, no confiar en userId/establecimiento del cuerpo, usar DTO y errores uniformes, mantener balance y concurrencia transaccionales, no inventar semillas, permisos, selección de establecimiento, contratos de categorías ni alertas pendientes; probar con SQL Server aislado las operaciones transaccionales.

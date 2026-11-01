@@ -27,7 +27,8 @@ public static class EstablishmentProfileEndpoints
             .Produces<EstablishmentProfileResponse>()
             .Produces<ApiError>(StatusCodes.Status400BadRequest)
             .Produces<ApiError>(StatusCodes.Status403Forbidden)
-            .Produces<ApiError>(StatusCodes.Status404NotFound);
+            .Produces<ApiError>(StatusCodes.Status404NotFound)
+            .Produces<ApiError>(StatusCodes.Status409Conflict);
 
         return api;
     }
@@ -76,6 +77,10 @@ public static class EstablishmentProfileEndpoints
         catch (EstablishmentProfileNotFoundException)
         {
             return Results.Json(new ApiError(ErrorCodes.NotFound, "El establecimiento no existe.", http.TraceIdentifier), statusCode: StatusCodes.Status404NotFound);
+        }
+        catch (EstablishmentProfileConcurrencyException)
+        {
+            return Results.Json(new ApiError("CONCURRENCY_CONFLICT", "El establecimiento cambió mientras se procesaba la solicitud.", http.TraceIdentifier), statusCode: StatusCodes.Status409Conflict);
         }
     }
 }

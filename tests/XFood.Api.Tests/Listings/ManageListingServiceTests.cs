@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using XFood.Application.Modules.Establishments;
 using XFood.Application.Modules.Listings;
 using XFood.Application.Modules.Listings.Contracts;
@@ -19,6 +20,7 @@ public sealed class ManageListingServiceTests
         listing.AvailableQuantity = 8;
         await using var db = CreateDbContext(listing, ActiveCategory());
         var service = new ManageListingService(db, new ListingOnboarding(listing.EstablishmentId), new FixedTimeProvider());
+        var actor = Guid.NewGuid();
 
         var result = await service.UpdateAsync(listing.Id, new UpdateListingRequest
         {
@@ -32,7 +34,7 @@ public sealed class ManageListingServiceTests
             OriginalUnitPrice = 150,
             DiscountedUnitPrice = 90,
             PaymentInstructions = "Pago en caja",
-        }, Guid.NewGuid());
+        }, actor);
 
         var stored = await db.Set<Listing>().SingleAsync();
         Assert.Equal("Venta editada", result.Title);
@@ -40,6 +42,10 @@ public sealed class ManageListingServiceTests
         Assert.Equal(4, stored.AvailableQuantity);
         Assert.Equal(2, stored.AssignedQuantity);
         Assert.Equal(ListingMode.Sale, stored.Mode);
+        var revision = await db.Set<ListingRevision>().SingleAsync();
+        Assert.Equal(actor, revision.ActorUserId);
+        Assert.Equal("Original", JsonDocument.Parse(revision.BeforeJson).RootElement.GetProperty("Title").GetString());
+        Assert.Equal("Venta editada", JsonDocument.Parse(revision.AfterJson).RootElement.GetProperty("Title").GetString());
     }
 
     [Fact]

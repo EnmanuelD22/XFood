@@ -1,5 +1,7 @@
 # Auditoría técnica de HU-01 — Backend XFood
 
+> **Informe histórico.** Esta auditoría describe el commit `8734f8e` anterior a los ajustes de integración. Sus conteos de pruebas, rutas de documentos y hallazgos sobre trazabilidad no representan el estado actual. Para el resultado actualizado, véase [HU-01-Cierre.md](HU-01-Cierre.md). Los documentos de producto vigentes se mantienen localmente en `documentacion/` y están ignorados por Git.
+
 **Fecha de auditoría:** 2026-11-01  
 **Rama revisada:** `feature/hu-01-backend`  
 **Commit de HU-01:** `8734f8ed562ffec5a932721150ea94d98ac883ea` — `HU-01: implement establishment profile and listings`  

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using XFood.Application.Modules.Establishments;
 using XFood.Application.Modules.Listings;
 using XFood.Application.Modules.Listings.Contracts;
@@ -34,6 +35,8 @@ public sealed class ManageListingService(
         if (listing.AvailableQuantity + availableDelta < 0 || request.InitialQuantity < committed)
             throw new ListingInvalidOperationException("La cantidad no puede reducir las unidades comprometidas o entregadas.");
 
+        var before = ListingSnapshot(listing);
+
         listing.CategoryId = request.CategoryId;
         listing.Title = request.Title.Trim();
         listing.Description = request.Description.Trim();
@@ -45,6 +48,16 @@ public sealed class ManageListingService(
         listing.OriginalUnitPrice = request.OriginalUnitPrice;
         listing.DiscountedUnitPrice = request.DiscountedUnitPrice;
         listing.PaymentInstructions = string.IsNullOrWhiteSpace(request.PaymentInstructions) ? null : request.PaymentInstructions.Trim();
+
+        db.Add(new ListingRevision
+        {
+            Id = Guid.CreateVersion7(),
+            ListingId = listingId,
+            ActorUserId = actorUserId,
+            OccurredAtUtc = nowUtc,
+            BeforeJson = before,
+            AfterJson = ListingSnapshot(listing),
+        });
 
         await SaveWithTransactionAsync(cancellationToken);
         return ToResponse(listing);
@@ -136,4 +149,12 @@ public sealed class ManageListingService(
         PickupDeadlineUtc = listing.PickupDeadlineUtc,
         CreatedAtUtc = listing.CreatedAtUtc,
     };
+
+    private static string ListingSnapshot(Listing value) => JsonSerializer.Serialize(new
+    {
+        value.CategoryId, value.Title, value.Description, value.InitialQuantity,
+        value.AvailableQuantity, value.PickupInstructions, value.PickupStartsAtUtc,
+        value.PickupDeadlineUtc, value.OriginalUnitPrice, value.DiscountedUnitPrice,
+        value.PaymentInstructions,
+    });
 }

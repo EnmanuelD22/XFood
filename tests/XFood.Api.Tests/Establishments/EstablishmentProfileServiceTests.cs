@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using XFood.Application.Modules.Establishments;
 using XFood.Application.Modules.Establishments.Contracts;
 using XFood.Domain.Modules.Establishments;
@@ -33,8 +34,9 @@ public sealed class EstablishmentProfileServiceTests
         establishment.CreatedByUserId = createdByUserId;
         await using var db = CreateDbContext(establishment);
         var service = new EstablishmentProfileService(db, new ProfileOnboarding(establishmentId));
+        var actor = Guid.NewGuid();
 
-        var result = await service.UpdateAsync(establishmentId, Guid.NewGuid(), new UpdateEstablishmentProfileRequest
+        var result = await service.UpdateAsync(establishmentId, actor, new UpdateEstablishmentProfileRequest
         {
             Name = "Actualizado",
             ContactName = "Contacto nuevo",
@@ -51,6 +53,11 @@ public sealed class EstablishmentProfileServiceTests
         Assert.Equal(EstablishmentStatus.Active, stored.Status);
         Assert.Equal(createdByUserId, stored.CreatedByUserId);
         Assert.Equal("America/Santo_Domingo", stored.TimeZoneId);
+        var revision = await db.Set<EstablishmentProfileRevision>().SingleAsync();
+        Assert.Equal(actor, revision.ActorUserId);
+        Assert.Equal(establishmentId, revision.EstablishmentId);
+        Assert.Equal("Original", JsonDocument.Parse(revision.BeforeJson).RootElement.GetProperty("Name").GetString());
+        Assert.Equal("Actualizado", JsonDocument.Parse(revision.AfterJson).RootElement.GetProperty("Name").GetString());
     }
 
     [Fact]
@@ -72,6 +79,7 @@ public sealed class EstablishmentProfileServiceTests
         }));
 
         Assert.Equal("Original", (await db.Set<Establishment>().SingleAsync()).Name);
+        Assert.Empty(await db.Set<EstablishmentProfileRevision>().ToListAsync());
     }
 
     [Fact]

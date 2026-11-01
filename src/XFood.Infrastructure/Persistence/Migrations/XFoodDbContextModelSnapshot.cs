@@ -946,6 +946,45 @@ namespace XFood.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("XFood.Domain.Modules.Establishments.EstablishmentProfileRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AfterJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BeforeJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("EstablishmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("EstablishmentId", "OccurredAtUtc");
+
+                    b.ToTable("EstablishmentProfileRevisions", "establishments", t =>
+                        {
+                            t.HasCheckConstraint("CK_EstablishmentProfileRevisions_AfterJson", "ISJSON([AfterJson]) = 1");
+
+                            t.HasCheckConstraint("CK_EstablishmentProfileRevisions_BeforeJson", "ISJSON([BeforeJson]) = 1");
+
+                            t.HasCheckConstraint("CK_EstablishmentProfileRevisions_Utc", "([OccurredAtUtc] IS NULL OR DATEPART(TZOFFSET, [OccurredAtUtc]) = 0)");
+                        });
+                });
+
             modelBuilder.Entity("XFood.Domain.Modules.Establishments.EstablishmentStatusChange", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1281,6 +1320,45 @@ namespace XFood.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("CK_ListingFitnessChanges_Reason_NotBlank", "LEN(LTRIM(RTRIM([Reason]))) > 0");
 
                             t.HasCheckConstraint("CK_ListingFitnessChanges_Utc", "([OccurredAtUtc] IS NULL OR DATEPART(TZOFFSET, [OccurredAtUtc]) = 0)");
+                        });
+                });
+
+            modelBuilder.Entity("XFood.Domain.Modules.Listings.ListingRevision", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AfterJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BeforeJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ListingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasPrecision(3)
+                        .HasColumnType("datetimeoffset(3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("ListingId", "OccurredAtUtc");
+
+                    b.ToTable("ListingRevisions", "listings", t =>
+                        {
+                            t.HasCheckConstraint("CK_ListingRevisions_AfterJson", "ISJSON([AfterJson]) = 1");
+
+                            t.HasCheckConstraint("CK_ListingRevisions_BeforeJson", "ISJSON([BeforeJson]) = 1");
+
+                            t.HasCheckConstraint("CK_ListingRevisions_Utc", "([OccurredAtUtc] IS NULL OR DATEPART(TZOFFSET, [OccurredAtUtc]) = 0)");
                         });
                 });
 
@@ -2256,6 +2334,21 @@ namespace XFood.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("XFood.Domain.Modules.Establishments.EstablishmentProfileRevision", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser<System.Guid>", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("XFood.Domain.Modules.Establishments.Establishment", null)
+                        .WithMany()
+                        .HasForeignKey("EstablishmentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("XFood.Domain.Modules.Establishments.EstablishmentStatusChange", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser<System.Guid>", null)
@@ -2317,6 +2410,21 @@ namespace XFood.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("XFood.Domain.Modules.Listings.ListingFitnessChange", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser<System.Guid>", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("XFood.Domain.Modules.Listings.Listing", null)
+                        .WithMany()
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("XFood.Domain.Modules.Listings.ListingRevision", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser<System.Guid>", null)
                         .WithMany()

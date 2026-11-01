@@ -8,3 +8,5 @@ public sealed class EstablishmentProfileValidationException(IReadOnlyDictionary<
 public sealed class EstablishmentProfileForbiddenException : Exception;
 
 public sealed class EstablishmentProfileNotFoundException : Exception;
+
+public sealed class EstablishmentProfileConcurrencyException : Exception;

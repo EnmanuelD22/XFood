@@ -44,3 +44,14 @@ public sealed class EstablishmentStatusChange
     public string Reason { get; set; } = null!;
     public DateTimeOffset OccurredAtUtc { get; set; }
 }
+
+/// <summary>Immutable before/after profile snapshot, committed with the profile edit.</summary>
+public sealed class EstablishmentProfileRevision
+{
+    public Guid Id { get; set; }
+    public Guid EstablishmentId { get; set; }
+    public Guid ActorUserId { get; set; }
+    public DateTimeOffset OccurredAtUtc { get; set; }
+    public string BeforeJson { get; set; } = null!;
+    public string AfterJson { get; set; } = null!;
+}

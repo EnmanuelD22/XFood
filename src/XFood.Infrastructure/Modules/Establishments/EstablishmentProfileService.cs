@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using XFood.Application.Modules.Establishments;
 using XFood.Application.Modules.Establishments.Contracts;
 using XFood.Application.Modules.Establishments.Services;
@@ -9,7 +10,8 @@ namespace XFood.Infrastructure.Modules.Establishments;
 
 public sealed class EstablishmentProfileService(
     XFoodDbContext db,
-    IEstablishmentOnboarding onboarding) : IEstablishmentProfileService
+    IEstablishmentOnboarding onboarding,
+    TimeProvider? clock = null) : IEstablishmentProfileService
 {
     public async Task<EstablishmentProfileResponse> GetAsync(
         Guid establishmentId,
@@ -40,6 +42,8 @@ public sealed class EstablishmentProfileService(
             .SingleOrDefaultAsync(item => item.Id == establishmentId, cancellationToken)
             ?? throw new EstablishmentProfileNotFoundException();
 
+        var before = ProfileSnapshot(establishment);
+
         establishment.Name = request.Name.Trim();
         establishment.ContactName = request.ContactName.Trim();
         establishment.ContactEmail = request.ContactEmail.Trim();
@@ -48,7 +52,24 @@ public sealed class EstablishmentProfileService(
         establishment.Latitude = request.Latitude;
         establishment.Longitude = request.Longitude;
 
-        await db.SaveChangesAsync(cancellationToken);
+        db.Add(new EstablishmentProfileRevision
+        {
+            Id = Guid.CreateVersion7(),
+            EstablishmentId = establishmentId,
+            ActorUserId = userId,
+            OccurredAtUtc = (clock ?? TimeProvider.System).GetUtcNow(),
+            BeforeJson = before,
+            AfterJson = ProfileSnapshot(establishment),
+        });
+
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new EstablishmentProfileConcurrencyException();
+        }
         return ToResponse(establishment);
     }
 
@@ -71,5 +92,10 @@ public sealed class EstablishmentProfileService(
         Longitude = establishment.Longitude,
         TimeZoneId = establishment.TimeZoneId,
     };
-}
 
+    private static string ProfileSnapshot(Establishment value) => JsonSerializer.Serialize(new
+    {
+        value.Name, value.ContactName, value.ContactEmail, value.ContactPhone,
+        value.Address, value.Latitude, value.Longitude, value.TimeZoneId,
+    });
+}

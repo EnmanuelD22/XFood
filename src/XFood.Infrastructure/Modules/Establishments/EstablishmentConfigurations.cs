@@ -67,3 +67,22 @@ public sealed class EstablishmentStatusChangeConfiguration : IEntityTypeConfigur
         MappingRules.Utc(b);
     }
 }
+
+public sealed class EstablishmentProfileRevisionConfiguration : IEntityTypeConfiguration<EstablishmentProfileRevision>
+{
+    public void Configure(EntityTypeBuilder<EstablishmentProfileRevision> b)
+    {
+        b.ToTable("EstablishmentProfileRevisions", "establishments", t =>
+        {
+            t.HasCheckConstraint("CK_EstablishmentProfileRevisions_BeforeJson", "ISJSON([BeforeJson]) = 1");
+            t.HasCheckConstraint("CK_EstablishmentProfileRevisions_AfterJson", "ISJSON([AfterJson]) = 1");
+        });
+        MappingRules.GuidKey(b);
+        b.Property(x => x.BeforeJson).IsRequired();
+        b.Property(x => x.AfterJson).IsRequired();
+        b.HasOne<Establishment>().WithMany().HasForeignKey(x => x.EstablishmentId).OnDelete(DeleteBehavior.NoAction);
+        b.HasOne<IdentityUser<Guid>>().WithMany().HasForeignKey(x => x.ActorUserId).OnDelete(DeleteBehavior.NoAction);
+        b.HasIndex(x => new { x.EstablishmentId, x.OccurredAtUtc });
+        MappingRules.Utc(b);
+    }
+}

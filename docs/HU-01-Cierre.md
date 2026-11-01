@@ -14,7 +14,7 @@ HU-01 cubre el backend de establecimientos y publicaciones bajo responsabilidad 
 - Cambios de aptitud: `POST /api/v1/listings/{listingId}/fitness`.
 - Ajustes y transferencias de inventario: `POST /api/v1/listings/{listingId}/stock-adjustments` y `POST /api/v1/listings/{listingId}/stock-transfers`.
 - Cuenta y establecimientos disponibles: `GET /api/v1/me`; la respuesta incluye `Establishments` con `Id`, `Name`, `Status`, `MemberRole` e `IsPrimary`. No se añadió una ruta duplicada.
-- Historial de estados, ajustes, transferencias, aptitud y auditoría con actor, motivo y fecha UTC.
+- Historial de estados, ajustes, transferencias y aptitud con actor, motivo y fecha UTC. Las ediciones de perfil y publicación guardan actor, fecha UTC y valores anteriores/posteriores en revisiones persistentes.
 - Detección y persistencia deduplicada de alertas de vencimiento mediante `IListingExpiryAlertService`.
 
 ## Autorización
@@ -41,7 +41,7 @@ Reservations y Donations no aportan todavía casos de uso persistentes, ledger/o
 
 ### COMPLETADO
 
-Perfil, publicaciones Sale y Donation, consulta activa, edición, desactivación, aptitud, ajustes, transferencias, validaciones de modalidad/precio/currency/UTC, autorización por establecimiento, balance de inventario, `RowVersion`, auditoría, contrato público de inventario, detección/persistencia deduplicada de alertas y documentación OpenAPI generada desde las rutas implementadas.
+Perfil, publicaciones Sale y Donation, consulta activa, edición, desactivación, aptitud, ajustes, transferencias, validaciones de modalidad/precio/currency/UTC, autorización por establecimiento, balance de inventario, `RowVersion`, auditoría de ediciones y transiciones, contrato público de inventario, detección/persistencia deduplicada de alertas y documentación OpenAPI generada desde las rutas implementadas.
 
 ### PENDIENTE DE CARLOS
 
@@ -59,6 +59,16 @@ Wilmer/HU-04 mantiene identidad, roles y ciclo de membresías. Reservations debe
 
 Búsqueda geográfica por distancia, paginación, filtros no aprobados, detalle individual no implementado, semillas de categorías, reservas/aceptaciones operativas, envío push y procesos de otros módulos.
 
-## Validación de entrega
+## Migración y validación de entrega
 
-La validación debe usar SQL Server aislado mediante `SqlServerApiFixture`; nunca `XFoodDB`. Ejecutar restore, build, pruebas unitarias/API, pruebas de integración SQL Server, verificación de migraciones/snapshot, `git diff --check` y revisión de secretos/configuración local. No hacer commit ni push. La rama queda técnicamente preparada para revisión de HU-01 siempre que estas comprobaciones finales resulten correctas; RF-14 completo de extremo a extremo y las operaciones de Reservations/Donations no deben declararse terminadas hasta que sus módulos entreguen los contratos operativos indicados.
+`20261101171937_AuditHu01Edits` agrega únicamente `establishments.EstablishmentProfileRevisions` y `listings.ListingRevisions`, con actor referenciado a `identity.Users`, fecha UTC, referencias al recurso, índices y JSON válido. Su script ascendente solo crea tablas, claves, índices y restricciones; no altera las migraciones previas ni elimina datos. El snapshot coincide con el modelo EF Core.
+
+La restauración y compilación terminaron sin errores. Con la instancia predeterminada local `MSSQLSERVER` y las pruebas SQL obligatorias se ejecutaron **139 pruebas de API y 24 de arquitectura: 163 correctas, cero fallidas y cero omitidas**. Las tres nuevas pruebas de HU-01 verificaron auditoría persistida, conflicto sobre la última unidad y transferencia atómica en bases aisladas `XFood_Tests_<guid>`. La fixture aplicó allí todas las migraciones, incluida `AuditHu01Edits`, y eliminó las bases al finalizar; una consulta posterior confirmó que no quedaba ninguna `XFood_Tests_*`. Comando usado:
+
+```powershell
+$env:XFOOD_TEST_SQLSERVER='Server=localhost;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
+$env:XFOOD_REQUIRE_SQL_TESTS='true'
+dotnet test XFood.slnx --no-build --no-restore -m:1 --nologo
+```
+
+La base de pruebas se crea y elimina por la fixture; no usar `XFoodDB`. RF-14 completo de extremo a extremo y las operaciones de Reservations/Donations no deben declararse terminadas hasta que sus módulos entreguen los contratos operativos indicados. La migración no se aplicó a `XFoodDB` durante esta revisión.
