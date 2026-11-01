@@ -29,7 +29,7 @@ public sealed class ListingSearchServiceTests
         var edge = await SeedSaleAtAsync(2.95m, "borde");
         var near = await SeedSaleAtAsync(0.5m, "cerca");
 
-        var result = await Service().SearchAsync(new ListingSearchCriteria(OriginLat, OriginLon, null, Now));
+        var result = (await Service().SearchAsync(new ListingSearchCriteria(OriginLat, OriginLon, null, Now))).Items;
 
         Assert.Equal([near.Id, edge.Id], result.Select(listing => listing.Id));
         Assert.Equal([0.5m, 2.95m], result.Select(listing => listing.DistanceKm!.Value));
@@ -46,7 +46,7 @@ public sealed class ListingSearchServiceTests
         foreach (var km in new[] { 0.9m, 2.9m, 4.9m, 9.9m, 10.1m })
             await SeedSaleAtAsync(km, $"a {km} km");
 
-        var result = await Service().SearchAsync(new ListingSearchCriteria(OriginLat, OriginLon, radiusKm, Now));
+        var result = (await Service().SearchAsync(new ListingSearchCriteria(OriginLat, OriginLon, radiusKm, Now))).Items;
 
         Assert.Equal(expected, result.Count);
         Assert.All(result, listing => Assert.True(listing.DistanceKm <= radiusKm));
@@ -73,8 +73,8 @@ public sealed class ListingSearchServiceTests
         await db.SaveChangesAsync();
         var service = Service();
 
-        var nearby = await service.SearchAsync(new ListingSearchCriteria(OriginLat, OriginLon, 1m, Now));
-        var everywhere = await service.SearchAsync(new ListingSearchCriteria(null, null, null, Now));
+        var nearby = (await service.SearchAsync(new ListingSearchCriteria(OriginLat, OriginLon, 1m, Now))).Items;
+        var everywhere = (await service.SearchAsync(new ListingSearchCriteria(null, null, null, Now))).Items;
 
         Assert.Equal(available.Id, Assert.Single(nearby).Id);
         Assert.Equal(available.Id, Assert.Single(everywhere).Id);
@@ -88,7 +88,7 @@ public sealed class ListingSearchServiceTests
     {
         var listing = await SeedSaleAtAsync(1.5m, "con datos");
 
-        var result = Assert.Single(await Service().SearchAsync(new ListingSearchCriteria(null, null, null, Now)));
+        var result = Assert.Single((await Service().SearchAsync(new ListingSearchCriteria(null, null, null, Now))).Items);
 
         Assert.Equal(listing.Id, result.Id);
         Assert.Equal("Panadería", result.CategoryName);
@@ -107,7 +107,7 @@ public sealed class ListingSearchServiceTests
         var sooner = Add(Sale(Add(Establishment(OwnerId, (19m, -71m), "A")), category.Id, "antes", Now.AddHours(1)));
         await db.SaveChangesAsync();
 
-        var result = await Service().SearchAsync(new ListingSearchCriteria(null, null, null, Now));
+        var result = (await Service().SearchAsync(new ListingSearchCriteria(null, null, null, Now))).Items;
 
         Assert.Equal([sooner.Id, later.Id], result.Select(listing => listing.Id));
     }
@@ -119,9 +119,54 @@ public sealed class ListingSearchServiceTests
             await SeedSaleAtAsync(0.1m * i, $"oferta {i}");
         var service = Service(maxResults: 2);
 
-        Assert.Equal(2, (await service.SearchAsync(new ListingSearchCriteria(null, null, null, Now))).Count);
-        var nearest = await service.SearchAsync(new ListingSearchCriteria(OriginLat, OriginLon, 1m, Now));
+        Assert.Equal(2, (await service.SearchAsync(new ListingSearchCriteria(null, null, null, Now))).Items.Count);
+        var nearest = (await service.SearchAsync(new ListingSearchCriteria(OriginLat, OriginLon, 1m, Now))).Items;
         Assert.Equal([0.1m, 0.2m], nearest.Select(listing => listing.DistanceKm!.Value));
+    }
+
+    [Fact]
+    public async Task Pages_are_stable_and_do_not_repeat_listings_in_either_search_mode()
+    {
+        for (var i = 1; i <= 5; i++)
+            await SeedSaleAtAsync(0.1m * i, $"oferta {i}");
+        var service = Service();
+
+        foreach (var point in new[] { false, true })
+        {
+            async Task<ListingSearchPage> PageAsync(int page) => await service.SearchAsync(new ListingSearchCriteria(
+                point ? OriginLat : null, point ? OriginLon : null, point ? 1m : null, Now, page, 2));
+
+            var first = await PageAsync(1);
+            var second = await PageAsync(2);
+            var third = await PageAsync(3);
+            var empty = await PageAsync(4);
+            var ids = first.Items.Concat(second.Items).Concat(third.Items).Select(item => item.Id).ToArray();
+
+            Assert.Equal((2, true), (first.Items.Count, first.HasNextPage));
+            Assert.Equal((2, true), (second.Items.Count, second.HasNextPage));
+            Assert.Equal((1, false), (third.Items.Count, third.HasNextPage));
+            Assert.Empty(empty.Items);
+            Assert.False(empty.HasNextPage);
+            Assert.Equal(5, ids.Distinct().Count());
+            if (point)
+                Assert.Equal([0.1m, 0.2m, 0.3m, 0.4m, 0.5m],
+                    first.Items.Concat(second.Items).Concat(third.Items).Select(item => item.DistanceKm!.Value));
+            else
+                Assert.Equal(ids.OrderBy(id => id), ids);
+        }
+    }
+
+    [Theory]
+    [InlineData(0, 2, "page")]
+    [InlineData(1, 0, "pageSize")]
+    [InlineData(1, 101, "pageSize")]
+    [InlineData(2147483647, 2, "page")]
+    public async Task Invalid_paging_is_rejected(int page, int pageSize, string field)
+    {
+        var error = await Assert.ThrowsAsync<ListingValidationException>(() =>
+            Service().SearchAsync(new ListingSearchCriteria(null, null, null, Now, page, pageSize)));
+
+        Assert.Contains(field, error.Errors.Keys);
     }
 
     [Fact]
@@ -154,7 +199,7 @@ public sealed class ListingSearchServiceTests
         var options = Service().GetOptions();
 
         Assert.Equal([1m, 3m, 5m, 10m], options.RadiiKm);
-        Assert.Equal((3m, 100), (options.DefaultRadiusKm, options.MaxResults));
+        Assert.Equal((3m, 20, 100), (options.DefaultRadiusKm, options.DefaultPageSize, options.MaxResults));
     }
 
     private ListingSearchService Service(int maxResults = 100) => new(db, Options.Create(new ListingSearchOptions
@@ -162,6 +207,7 @@ public sealed class ListingSearchServiceTests
         AllowedRadiiKm = [1m, 3m, 5m, 10m],
         DefaultRadiusKm = 3m,
         MaxResults = maxResults,
+        DefaultPageSize = Math.Min(20, maxResults),
     }));
 
     private async Task<Listing> SeedSaleAtAsync(decimal km, string name)

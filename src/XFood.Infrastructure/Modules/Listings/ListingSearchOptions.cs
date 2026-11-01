@@ -12,10 +12,13 @@ public sealed class ListingSearchOptions
 
     public int MaxResults { get; set; } = 100;
 
+    public int DefaultPageSize { get; set; } = 20;
+
     internal bool IsValid() =>
         AllowedRadiiKm.Length > 0
         && AllowedRadiiKm.All(radius => radius > 0)
         && AllowedRadiiKm.Distinct().Count() == AllowedRadiiKm.Length
         && AllowedRadiiKm.Contains(DefaultRadiusKm)
-        && MaxResults > 0;
+        && MaxResults is > 0 and < int.MaxValue
+        && DefaultPageSize > 0 && DefaultPageSize <= MaxResults;
 }

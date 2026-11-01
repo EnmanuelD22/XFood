@@ -8,10 +8,20 @@ public sealed record ListingSearchCriteria(
     decimal? Latitude,
     decimal? Longitude,
     decimal? RadiusKm,
-    DateTimeOffset AsOfUtc);
+    DateTimeOffset AsOfUtc,
+    int? Page = null,
+    int? PageSize = null);
+
+/// <summary>One page of public sale listings. Page numbers start at one.</summary>
+public sealed record ListingSearchPage(
+    IReadOnlyList<ListingSummaryResponse> Items,
+    int Page,
+    int PageSize,
+    bool HasNextPage);
 
 /// <summary>Configured search values the web client must offer instead of hard-coding them.</summary>
 public sealed record ListingSearchOptionsResponse(
     IReadOnlyList<decimal> RadiiKm,
     decimal DefaultRadiusKm,
-    int MaxResults);
+    int MaxResults,
+    int DefaultPageSize);

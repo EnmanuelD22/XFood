@@ -58,6 +58,63 @@ public sealed class Hu02SqlServerTests(SqlServerApiFixture fixture) : IClassFixt
     }
 
     [SqlServerFact]
+    public async Task Nearby_sales_are_paged_without_duplicates_and_report_whether_more_exist()
+    {
+        const decimal lat = 19.205m, lon = -69.336m; // Samaná, aislada de los demás escenarios
+        var owner = await SeedOwnerAsync();
+        var category = await AddAsync(Category($"HU02-{Guid.NewGuid():N}"));
+        var expected = new List<Guid>();
+        for (var i = 1; i <= 5; i++)
+        {
+            var establishment = await AddAsync(Establishment(owner, NorthOf(lat, lon, 0.1m * i), $"Local {i}"));
+            expected.Add((await AddAsync(Sale(establishment, category.Id, $"Oferta {i}", DateTimeOffset.UtcNow.AddHours(4)))).Id);
+        }
+
+        async Task<(List<ListingSummaryResponse> Items, bool HasNext)> PageAsync(int page)
+        {
+            var response = await Client.GetAsync(Invariant($"/api/v1/listings?latitude={lat}&longitude={lon}&radiusKm=1&page={page}&pageSize=2"));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal(page.ToString(), Assert.Single(response.Headers.GetValues("X-Page")));
+            Assert.Equal("2", Assert.Single(response.Headers.GetValues("X-Page-Size")));
+            return ((await response.Content.ReadFromJsonAsync<List<ListingSummaryResponse>>())!,
+                bool.Parse(Assert.Single(response.Headers.GetValues("X-Has-Next-Page"))));
+        }
+
+        var first = await PageAsync(1);
+        var second = await PageAsync(2);
+        var third = await PageAsync(3);
+        var empty = await PageAsync(4);
+
+        Assert.Equal(expected, first.Items.Concat(second.Items).Concat(third.Items).Select(item => item.Id));
+        Assert.Equal((true, true, false, false),
+            (first.HasNext, second.HasNext, third.HasNext, empty.HasNext));
+        Assert.Empty(empty.Items);
+    }
+
+    [SqlServerFact]
+    public async Task Search_without_a_point_applies_pagination_in_sql()
+    {
+        var owner = await SeedOwnerAsync();
+        var category = await AddAsync(Category($"HU02-{Guid.NewGuid():N}"));
+        var establishment = await AddAsync(Establishment(owner, (18.6m, -68.35m), "Local sin punto"));
+        var now = DateTimeOffset.UtcNow;
+        var expected = new List<Guid>();
+        for (var i = 1; i <= 5; i++)
+            expected.Add((await AddAsync(Sale(establishment, category.Id, $"Oferta {i}", now.AddHours(12).AddMinutes(i)))).Id);
+
+        async Task<List<ListingSummaryResponse>> PageAsync(int page)
+        {
+            var timestamp = Uri.EscapeDataString(now.AddHours(10).ToString("O"));
+            return await SearchAsync($"asOfUtc={timestamp}&page={page}&pageSize=2");
+        }
+
+        var ids = (await PageAsync(1)).Concat(await PageAsync(2)).Concat(await PageAsync(3))
+            .Select(item => item.Id).ToArray();
+        Assert.Equal(expected, ids);
+        Assert.Empty(await PageAsync(4));
+    }
+
+    [SqlServerFact]
     public async Task List_and_detail_hide_unavailable_sales_using_the_server_clock()
     {
         const decimal lat = 19.4517m, lon = -70.6970m; // Santiago
@@ -110,15 +167,16 @@ public sealed class Hu02SqlServerTests(SqlServerApiFixture fixture) : IClassFixt
         var nearby = Invariant($"latitude={lat}&longitude={lon}&radiusKm=1");
 
         var exhausted = await CreateSaleAsync(establishment.Id, category.Id, owner);
+        var destination = await CreateSaleAsync(establishment.Id, category.Id, owner);
         Assert.Contains(await SearchAsync(nearby), listing => listing.Id == exhausted.Id);
         var far = NorthOf(lat, lon, 20m);
         Assert.DoesNotContain(await SearchAsync(Invariant($"latitude={far.Latitude}&longitude={far.Longitude}&radiusKm=10")), listing => listing.Id == exhausted.Id);
         var expiredAt = Uri.EscapeDataString(exhausted.PickupDeadlineUtc.AddMinutes(1).ToString("O"));
         Assert.DoesNotContain(await SearchAsync($"{nearby}&asOfUtc={expiredAt}"), listing => listing.Id == exhausted.Id);
 
-        await UseAsync<IManageListingStockService>(service => service.AdjustAsync(exhausted.Id, new AdjustListingStockRequest
+        await UseAsync<IManageListingStockService>(service => service.TransferAsync(exhausted.Id, new TransferListingStockRequest
         {
-            Kind = StockAdjustmentKind.Withdrawal, Quantity = exhausted.AvailableQuantity, Reason = "Se agotó",
+            DestinationListingId = destination.Id, Quantity = exhausted.AvailableQuantity, Reason = "Traslado a otro lote",
         }, owner));
         await AssertHiddenAsync(exhausted.Id, nearby);
 
@@ -153,11 +211,13 @@ public sealed class Hu02SqlServerTests(SqlServerApiFixture fixture) : IClassFixt
         await AssertInvalidAsync("latitude=18.5&longitude=-181", "longitude");
         await AssertInvalidAsync("latitude=18.5&longitude=-69.9&radiusKm=2", "radiusKm");
         await AssertInvalidAsync("radiusKm=3", "radiusKm");
+        await AssertInvalidAsync("page=0", "page");
+        await AssertInvalidAsync("pageSize=101", "pageSize");
         Assert.Equal(HttpStatusCode.BadRequest, (await Client.GetAsync($"/api/v1/listings/{Guid.NewGuid()}?latitude=18.5")).StatusCode);
 
         var options = await Client.GetFromJsonAsync<ListingSearchOptionsResponse>("/api/v1/listings/search-options");
         Assert.Equal([1m, 3m, 5m, 10m], options!.RadiiKm);
-        Assert.Equal((3m, 100), (options.DefaultRadiusKm, options.MaxResults));
+        Assert.Equal((3m, 20, 100), (options.DefaultRadiusKm, options.DefaultPageSize, options.MaxResults));
     }
 
     private async Task AssertHiddenAsync(Guid listingId, string query)

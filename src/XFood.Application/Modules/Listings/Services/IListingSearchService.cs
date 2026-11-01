@@ -9,7 +9,7 @@ namespace XFood.Application.Modules.Listings.Services;
 public interface IListingSearchService
 {
     /// <exception cref="ListingValidationException">Invalid point or radius.</exception>
-    Task<IReadOnlyList<ListingSummaryResponse>> SearchAsync(
+    Task<ListingSearchPage> SearchAsync(
         ListingSearchCriteria criteria,
         CancellationToken cancellationToken = default);
 

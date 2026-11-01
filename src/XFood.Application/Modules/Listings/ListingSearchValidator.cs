@@ -42,4 +42,22 @@ public static class ListingSearchValidator
 
         return errors;
     }
+
+    public static IReadOnlyDictionary<string, string[]> ValidatePaging(
+        int? page, int? pageSize, int defaultPageSize, int maxPageSize)
+    {
+        var errors = new Dictionary<string, string[]>();
+        if (page is <= 0)
+            errors["page"] = ["La página debe ser mayor que cero."];
+        if (pageSize is <= 0 || pageSize > maxPageSize)
+            errors["pageSize"] = [$"El tamaño de página debe estar entre 1 y {maxPageSize}."];
+
+        var effectivePage = page ?? 1;
+        var effectiveSize = pageSize ?? defaultPageSize;
+        if (!errors.ContainsKey("page") && !errors.ContainsKey("pageSize")
+            && ((long)effectivePage - 1) * effectiveSize > int.MaxValue)
+            errors["page"] = ["La página solicitada supera el rango permitido."];
+
+        return errors;
+    }
 }

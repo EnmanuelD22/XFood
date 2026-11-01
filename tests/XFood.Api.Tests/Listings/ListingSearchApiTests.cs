@@ -45,7 +45,51 @@ public sealed class ListingSearchApiTests : IClassFixture<ListingSearchApiTests.
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var criteria = factory.Search.LastCriteria!;
         Assert.Equal((18.4861m, -69.9312m, 5m), (criteria.Latitude, criteria.Longitude, criteria.RadiusKm));
+        Assert.Null(criteria.Page);
+        Assert.Null(criteria.PageSize);
         Assert.Equal(TimeSpan.Zero, criteria.AsOfUtc.Offset);
+    }
+
+    [Fact]
+    public async Task Search_exposes_paging_headers_and_passes_page_to_the_service()
+    {
+        factory.Search.SetListings([]);
+
+        var response = await client.GetAsync("/api/v1/listings?page=2&pageSize=5");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal((2, 5), (factory.Search.LastCriteria!.Page, factory.Search.LastCriteria.PageSize));
+        Assert.Equal("2", Assert.Single(response.Headers.GetValues("X-Page")));
+        Assert.Equal("5", Assert.Single(response.Headers.GetValues("X-Page-Size")));
+        Assert.Equal("false", Assert.Single(response.Headers.GetValues("X-Has-Next-Page")));
+    }
+
+    [Fact]
+    public async Task Search_uses_the_configured_default_page_size()
+    {
+        factory.Search.SetListings([]);
+
+        var response = await client.GetAsync("/api/v1/listings");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("1", Assert.Single(response.Headers.GetValues("X-Page")));
+        Assert.Equal("20", Assert.Single(response.Headers.GetValues("X-Page-Size")));
+    }
+
+    [Fact]
+    public async Task Panel_origin_can_read_the_paging_headers()
+    {
+        factory.Search.SetListings([]);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/listings");
+        request.Headers.Add("Origin", "https://panel.xfood.test");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var exposed = Assert.Single(response.Headers.GetValues("Access-Control-Expose-Headers"));
+        Assert.Contains("X-Page", exposed);
+        Assert.Contains("X-Page-Size", exposed);
+        Assert.Contains("X-Has-Next-Page", exposed);
     }
 
     [Fact]
@@ -126,7 +170,7 @@ public sealed class ListingSearchApiTests : IClassFixture<ListingSearchApiTests.
         var options = await CreateClient(real).GetFromJsonAsync<ListingSearchOptionsResponse>("/api/v1/listings/search-options");
 
         Assert.Equal([1m, 3m, 5m, 10m], options!.RadiiKm);
-        Assert.Equal((3m, 100), (options.DefaultRadiusKm, options.MaxResults));
+        Assert.Equal((3m, 20, 100), (options.DefaultRadiusKm, options.DefaultPageSize, options.MaxResults));
     }
 
     [Fact]
@@ -136,6 +180,18 @@ public sealed class ListingSearchApiTests : IClassFixture<ListingSearchApiTests.
         {
             Configure(builder, "Testing");
             builder.UseSetting("Listings:Search:DefaultRadiusKm", "2");
+        });
+
+        Assert.Throws<OptionsValidationException>(() => invalid.CreateClient());
+    }
+
+    [Fact]
+    public void Startup_fails_when_default_page_size_exceeds_maximum()
+    {
+        using var invalid = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            Configure(builder, "Testing");
+            builder.UseSetting("Listings:Search:DefaultPageSize", "101");
         });
 
         Assert.Throws<OptionsValidationException>(() => invalid.CreateClient());
@@ -153,6 +209,11 @@ public sealed class ListingSearchApiTests : IClassFixture<ListingSearchApiTests.
             .ToDictionary(parameter => parameter.GetProperty("name").GetString()!);
         Assert.Contains("latitude", parameters.Keys);
         Assert.Contains("longitude", parameters.Keys);
+        Assert.Contains("page", parameters.Keys);
+        Assert.Contains("pageSize", parameters.Keys);
+        Assert.Equal(1, parameters["page"].GetProperty("schema").GetProperty("default").GetInt32());
+        Assert.Equal(20, parameters["pageSize"].GetProperty("schema").GetProperty("default").GetInt32());
+        Assert.Equal(100, parameters["pageSize"].GetProperty("schema").GetProperty("maximum").GetInt32());
         var radius = parameters["radiusKm"].GetProperty("schema");
         Assert.Equal([1m, 3m, 5m, 10m], radius.GetProperty("enum").EnumerateArray().Select(value => value.GetDecimal()));
         Assert.Equal(3m, radius.GetProperty("default").GetDecimal());

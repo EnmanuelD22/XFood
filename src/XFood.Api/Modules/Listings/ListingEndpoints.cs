@@ -29,15 +29,16 @@ public static class ListingEndpoints
                 "Público. Devuelve ventas activas, aptas, con unidades, con fecha límite posterior al reloj del servidor " +
                 "y de establecimientos habilitados. Sin latitude/longitude: orden por fecha límite. Con ellas: solo " +
                 "resultados dentro de radiusKm (distancia geográfica en línea recta calculada por el servidor; si se omite, " +
-                "el radio por defecto) ordenados por distancia, fecha límite e id. El máximo de resultados y los radios " +
-                "admitidos se obtienen en GET /api/v1/listings/search-options.")
+                "el radio por defecto) ordenados por distancia, fecha límite e id. page inicia en 1; pageSize " +
+                "tiene un valor por defecto y un máximo configurables. La respuesta conserva el arreglo JSON y " +
+                "expone X-Page, X-Page-Size y X-Has-Next-Page. Consulte GET /api/v1/listings/search-options.")
             .Produces<IReadOnlyList<ListingSummaryResponse>>()
             .Produces<ApiError>(StatusCodes.Status400BadRequest);
 
         api.MapGet("/listings/search-options", GetSearchOptions)
             .WithName("GetListingSearchOptions")
             .WithTags("Listings")
-            .WithSummary("Radios admitidos, radio por defecto y máximo de resultados de la búsqueda.")
+            .WithSummary("Radios y límites de paginación configurados para la búsqueda.")
             .Produces<ListingSearchOptionsResponse>();
 
         api.MapGet("/listings/{listingId:guid}", GetAvailableAsync)
@@ -252,6 +253,8 @@ public static class ListingEndpoints
         [Description("Latitud del punto de búsqueda (-90 a 90). Debe enviarse con longitude.")] decimal? latitude,
         [Description("Longitud del punto de búsqueda (-180 a 180). Debe enviarse con latitude.")] decimal? longitude,
         [Description("Radio en km, solo con latitude/longitude. Valores admitidos y defecto: GET /api/v1/listings/search-options.")] decimal? radiusKm,
+        [Description("Número de página, desde 1. Por defecto 1.")] int? page,
+        [Description("Resultados por página. Por defecto y máximo: GET /api/v1/listings/search-options.")] int? pageSize,
         TimeProvider timeProvider,
         IListingSearchService listings,
         HttpContext http,
@@ -272,8 +275,11 @@ public static class ListingEndpoints
         try
         {
             var result = await listings.SearchAsync(
-                new ListingSearchCriteria(latitude, longitude, radiusKm, evaluationTime), cancellationToken);
-            return Results.Ok(result);
+                new ListingSearchCriteria(latitude, longitude, radiusKm, evaluationTime, page, pageSize), cancellationToken);
+            http.Response.Headers["X-Page"] = result.Page.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            http.Response.Headers["X-Page-Size"] = result.PageSize.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            http.Response.Headers["X-Has-Next-Page"] = result.HasNextPage ? "true" : "false";
+            return Results.Ok(result.Items);
         }
         catch (ListingValidationException exception)
         {
@@ -465,6 +471,21 @@ public static class ListingEndpoints
             {
                 schema.Enum = [.. search.AllowedRadiiKm.Select(value => JsonValue.Create(value))];
                 schema.Default = JsonValue.Create(search.DefaultRadiusKm);
+            }
+
+            var page = operation.Parameters?.FirstOrDefault(parameter => parameter.Name == "page");
+            if (page?.Schema is OpenApiSchema pageSchema)
+            {
+                pageSchema.Minimum = "1";
+                pageSchema.Default = JsonValue.Create(1);
+            }
+
+            var pageSize = operation.Parameters?.FirstOrDefault(parameter => parameter.Name == "pageSize");
+            if (pageSize?.Schema is OpenApiSchema pageSizeSchema)
+            {
+                pageSizeSchema.Minimum = "1";
+                pageSizeSchema.Maximum = search.MaxResults.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                pageSizeSchema.Default = JsonValue.Create(search.DefaultPageSize);
             }
 
             return Task.CompletedTask;

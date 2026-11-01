@@ -45,6 +45,7 @@ public static class IdentitySetup
             .WithOrigins(panelOrigins)
             .AllowCredentials()
             .AllowAnyHeader()
+            .WithExposedHeaders("X-Page", "X-Page-Size", "X-Has-Next-Page")
             .WithMethods("GET", "POST", "PUT", "PATCH", "DELETE")));
 
         return services;

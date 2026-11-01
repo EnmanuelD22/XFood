@@ -220,12 +220,12 @@ internal sealed class FakeListingSearchService : IListingSearchService
         LastDetail = null;
     }
 
-    public Task<IReadOnlyList<ListingSummaryResponse>> SearchAsync(
+    public Task<ListingSearchPage> SearchAsync(
         ListingSearchCriteria criteria,
         CancellationToken cancellationToken = default)
     {
         LastCriteria = criteria;
-        return Task.FromResult(listings);
+        return Task.FromResult(new ListingSearchPage(listings, criteria.Page ?? 1, criteria.PageSize ?? 20, false));
     }
 
     public Task<ListingSummaryResponse?> FindAvailableAsync(
@@ -239,5 +239,5 @@ internal sealed class FakeListingSearchService : IListingSearchService
         return Task.FromResult(listings.FirstOrDefault(listing => listing.Id == listingId));
     }
 
-    public ListingSearchOptionsResponse GetOptions() => new([1m, 3m, 5m, 10m], 3m, 100);
+    public ListingSearchOptionsResponse GetOptions() => new([1m, 3m, 5m, 10m], 3m, 100, 20);
 }

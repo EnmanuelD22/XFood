@@ -11,24 +11,32 @@ namespace XFood.Infrastructure.Modules.Listings;
 
 public sealed class ListingSearchService(XFoodDbContext db, IOptions<ListingSearchOptions> options) : IListingSearchService
 {
-    public async Task<IReadOnlyList<ListingSummaryResponse>> SearchAsync(
+    public async Task<ListingSearchPage> SearchAsync(
         ListingSearchCriteria criteria,
         CancellationToken cancellationToken = default)
     {
         var settings = options.Value;
-        var errors = ListingSearchValidator.Validate(criteria.Latitude, criteria.Longitude, criteria.RadiusKm, settings.AllowedRadiiKm);
+        var errors = ListingSearchValidator.Validate(criteria.Latitude, criteria.Longitude, criteria.RadiusKm, settings.AllowedRadiiKm)
+            .Concat(ListingSearchValidator.ValidatePaging(criteria.Page, criteria.PageSize, settings.DefaultPageSize, settings.MaxResults))
+            .ToDictionary(error => error.Key, error => error.Value);
         if (errors.Count > 0)
             throw new ListingValidationException(errors);
+
+        var page = criteria.Page ?? 1;
+        var pageSize = criteria.PageSize ?? settings.DefaultPageSize;
+        var offset = (page - 1) * pageSize;
 
         var establishments = PublicEstablishmentQueries.Enabled(db);
 
         if (criteria.Latitude is not { } latitude || criteria.Longitude is not { } longitude)
         {
-            return await Project(Available(criteria.AsOfUtc), establishments)
+            var rows = await Project(Available(criteria.AsOfUtc), establishments)
                 .OrderBy(listing => listing.PickupDeadlineUtc)
                 .ThenBy(listing => listing.Id)
-                .Take(settings.MaxResults)
+                .Skip(offset)
+                .Take(pageSize + 1)
                 .ToListAsync(cancellationToken);
+            return new ListingSearchPage(rows.Take(pageSize).ToList(), page, pageSize, rows.Count > pageSize);
         }
 
         var radiusKm = criteria.RadiusKm ?? settings.DefaultRadiusKm;
@@ -40,15 +48,17 @@ public sealed class ListingSearchService(XFoodDbContext db, IOptions<ListingSear
                     && establishment.Longitude >= box.MinLongitude && establishment.Longitude <= box.MaxLongitude))
             .ToListAsync(cancellationToken);
 
-        return candidates
+        var selected = candidates
             .Select(listing => (Listing: listing, Km: DistanceFrom(listing, latitude, longitude)))
             .Where(candidate => candidate.Km <= (double)radiusKm)
             .OrderBy(candidate => candidate.Km)
             .ThenBy(candidate => candidate.Listing.PickupDeadlineUtc)
             .ThenBy(candidate => candidate.Listing.Id)
-            .Take(settings.MaxResults)
+            .Skip(offset)
+            .Take(pageSize + 1)
             .Select(candidate => WithDistance(candidate.Listing, candidate.Km))
             .ToList();
+        return new ListingSearchPage(selected.Take(pageSize).ToList(), page, pageSize, selected.Count > pageSize);
     }
 
     public async Task<ListingSummaryResponse?> FindAvailableAsync(
@@ -75,7 +85,7 @@ public sealed class ListingSearchService(XFoodDbContext db, IOptions<ListingSear
     public ListingSearchOptionsResponse GetOptions()
     {
         var settings = options.Value;
-        return new ListingSearchOptionsResponse(settings.AllowedRadiiKm, settings.DefaultRadiusKm, settings.MaxResults);
+        return new ListingSearchOptionsResponse(settings.AllowedRadiiKm, settings.DefaultRadiusKm, settings.MaxResults, settings.DefaultPageSize);
     }
 
     /// <summary>Same rules for list and detail; the deadline is compared with the evaluation instant, never with the stored status alone.</summary>

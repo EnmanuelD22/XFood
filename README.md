@@ -80,7 +80,7 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 - Vida del proceso: `https://localhost:7293/health/live` (no comprueba disponibilidad de SQL Server).
 - Documento OpenAPI JSON en Development: `https://localhost:7293/openapi/v1.json`.
 - No hay Swagger UI configurada. Las rutas de negocio usan `/api/v1`; las de cuentas y sesión están descritas en `src/XFood.Application/Modules/Identity/README.md`.
-- Búsqueda pública (HU-02): `GET /api/v1/listings?latitude=&longitude=&radiusKm=`, `GET /api/v1/listings/{id}` y `GET /api/v1/listings/search-options`. Radios, radio por defecto y máximo de resultados se configuran en `Listings:Search` de `appsettings.json`; contrato y decisiones en `docs/HU-02-Cierre.md`.
+- Búsqueda pública (HU-02): `GET /api/v1/listings?latitude=&longitude=&radiusKm=&page=1&pageSize=20`, `GET /api/v1/listings/{id}` y `GET /api/v1/listings/search-options`. La lista conserva el arreglo JSON; `X-Page`, `X-Page-Size` y `X-Has-Next-Page` permiten recorrerla. Radios y tamaños de página se configuran en `Listings:Search` de `appsettings.json`; contrato y decisiones en `docs/HU-02-Cierre.md`.
 
 ## Pruebas
 
