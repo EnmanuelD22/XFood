@@ -15,6 +15,7 @@ public sealed class ListingApiTests : IClassFixture<ListingApiTests.Factory>
     public sealed class Factory : WebApplicationFactory<Program>
     {
         internal FakeActiveListingsQueryService Query { get; } = new();
+        internal FakeListingSearchService Search { get; } = new();
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -23,7 +24,10 @@ public sealed class ListingApiTests : IClassFixture<ListingApiTests.Factory>
             builder.UseSetting("Cors:PanelOrigins:0", "https://panel.xfood.test");
             builder.UseSetting("Security:ApiOrigins:0", "https://api.xfood.test");
             builder.ConfigureTestServices(services =>
-                services.AddSingleton<IActiveListingsQueryService>(Query));
+            {
+                services.AddSingleton<IActiveListingsQueryService>(Query);
+                services.AddSingleton<IListingSearchService>(Search);
+            });
         }
     }
 
@@ -44,7 +48,7 @@ public sealed class ListingApiTests : IClassFixture<ListingApiTests.Factory>
     public async Task Get_active_listings_returns_service_response_and_passes_as_of_utc()
     {
         var asOfUtc = new DateTimeOffset(2026, 11, 1, 10, 0, 0, TimeSpan.Zero);
-        var expected = new ListingResponse
+        var expected = new ListingSummaryResponse
         {
             Id = Guid.NewGuid(),
             EstablishmentId = Guid.NewGuid(),
@@ -66,7 +70,7 @@ public sealed class ListingApiTests : IClassFixture<ListingApiTests.Factory>
             PickupDeadlineUtc = asOfUtc.AddHours(3),
             CreatedAtUtc = asOfUtc.AddMinutes(-10),
         };
-        factory.Query.SetListings([expected]);
+        factory.Search.SetListings([expected]);
 
         var response = await client.GetAsync($"/api/v1/listings?asOfUtc={Uri.EscapeDataString(asOfUtc.ToString("O"))}");
 
@@ -75,26 +79,26 @@ public sealed class ListingApiTests : IClassFixture<ListingApiTests.Factory>
         var listing = Assert.Single(listings!);
         Assert.Equal(expected.Id, listing.Id);
         Assert.Equal(expected.Title, listing.Title);
-        Assert.True(factory.Query.LastAsOfUtc >= asOfUtc);
-        Assert.Equal(ListingMode.Sale, factory.Query.LastMode);
+        Assert.True(factory.Search.LastCriteria!.AsOfUtc >= asOfUtc);
+        Assert.Null(factory.Search.LastCriteria.Latitude);
     }
 
     [Fact]
     public async Task Get_active_listings_without_as_of_uses_utc_time_provider()
     {
-        factory.Query.SetListings([]);
+        factory.Search.SetListings([]);
 
         var response = await client.GetAsync("/api/v1/listings");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotEqual(default, factory.Query.LastAsOfUtc);
-        Assert.Equal(TimeSpan.Zero, factory.Query.LastAsOfUtc!.Value.Offset);
+        Assert.NotEqual(default, factory.Search.LastCriteria!.AsOfUtc);
+        Assert.Equal(TimeSpan.Zero, factory.Search.LastCriteria.AsOfUtc.Offset);
     }
 
     [Fact]
     public async Task Get_active_listings_rejects_non_utc_as_of()
     {
-        factory.Query.SetListings([]);
+        factory.Search.SetListings([]);
 
         var response = await client.GetAsync("/api/v1/listings?asOfUtc=2026-11-01T10:00:00-04:00");
 
@@ -102,7 +106,7 @@ public sealed class ListingApiTests : IClassFixture<ListingApiTests.Factory>
         var error = await response.Content.ReadFromJsonAsync<XFood.Api.Http.ApiError>();
         Assert.Equal("VALIDATION_ERROR", error!.Code);
         Assert.Contains("asOfUtc", error.Errors!.Keys);
-        Assert.Null(factory.Query.LastAsOfUtc);
+        Assert.Null(factory.Search.LastCriteria);
     }
 
     [Fact]
@@ -192,4 +196,40 @@ internal sealed class FakeActiveListingsQueryService : IActiveListingsQueryServi
         LastMode = mode;
         return Task.FromResult(listings);
     }
+}
+
+internal sealed class FakeListingSearchService : IListingSearchService
+{
+    private IReadOnlyList<ListingSummaryResponse> listings = [];
+
+    public ListingSearchCriteria? LastCriteria { get; private set; }
+    public (Guid ListingId, decimal? Latitude, decimal? Longitude, DateTimeOffset AsOfUtc)? LastDetail { get; private set; }
+
+    public void SetListings(IReadOnlyList<ListingSummaryResponse> values)
+    {
+        listings = values;
+        LastCriteria = null;
+        LastDetail = null;
+    }
+
+    public Task<IReadOnlyList<ListingSummaryResponse>> SearchAsync(
+        ListingSearchCriteria criteria,
+        CancellationToken cancellationToken = default)
+    {
+        LastCriteria = criteria;
+        return Task.FromResult(listings);
+    }
+
+    public Task<ListingSummaryResponse?> FindAvailableAsync(
+        Guid listingId,
+        decimal? latitude,
+        decimal? longitude,
+        DateTimeOffset asOfUtc,
+        CancellationToken cancellationToken = default)
+    {
+        LastDetail = (listingId, latitude, longitude, asOfUtc);
+        return Task.FromResult(listings.FirstOrDefault(listing => listing.Id == listingId));
+    }
+
+    public ListingSearchOptionsResponse GetOptions() => new([1m, 3m, 5m, 10m], 3m, 100);
 }

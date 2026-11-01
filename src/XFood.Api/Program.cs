@@ -6,7 +6,7 @@ using XFood.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddListingSearchDocumentation());
 builder.Services.AddApiErrors();
 builder.Services.AddXFoodInfrastructure(builder.Configuration);
 builder.Services.AddIdentityApi(builder.Configuration);

@@ -1,4 +1,9 @@
+using System.ComponentModel;
 using System.Security.Claims;
+using System.Text.Json.Nodes;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.Extensions.Options;
+using Microsoft.OpenApi;
 using XFood.Api.Http;
 using XFood.Application.Common;
 using XFood.Application.Modules.Listings;
@@ -8,6 +13,7 @@ using XFood.Application.Modules.Donations;
 using XFood.Domain.Modules.Donations;
 using XFood.Domain.Modules.Listings;
 using XFood.Api.Modules.Identity;
+using XFood.Infrastructure.Modules.Listings;
 
 namespace XFood.Api.Modules.Listings;
 
@@ -18,8 +24,33 @@ public static class ListingEndpoints
         api.MapGet("/listings", GetActiveAsync)
             .WithName("GetActiveListings")
             .WithTags("Listings")
-            .Produces<IReadOnlyList<ListingResponse>>()
+            .WithSummary("Busca ventas disponibles, opcionalmente cerca de un punto.")
+            .WithDescription(
+                "Público. Devuelve ventas activas, aptas, con unidades, con fecha límite posterior al reloj del servidor " +
+                "y de establecimientos habilitados. Sin latitude/longitude: orden por fecha límite. Con ellas: solo " +
+                "resultados dentro de radiusKm (distancia geográfica en línea recta calculada por el servidor; si se omite, " +
+                "el radio por defecto) ordenados por distancia, fecha límite e id. El máximo de resultados y los radios " +
+                "admitidos se obtienen en GET /api/v1/listings/search-options.")
+            .Produces<IReadOnlyList<ListingSummaryResponse>>()
             .Produces<ApiError>(StatusCodes.Status400BadRequest);
+
+        api.MapGet("/listings/search-options", GetSearchOptions)
+            .WithName("GetListingSearchOptions")
+            .WithTags("Listings")
+            .WithSummary("Radios admitidos, radio por defecto y máximo de resultados de la búsqueda.")
+            .Produces<ListingSearchOptionsResponse>();
+
+        api.MapGet("/listings/{listingId:guid}", GetAvailableAsync)
+            .WithName("GetAvailableListing")
+            .WithTags("Listings")
+            .WithSummary("Detalle público de una venta disponible.")
+            .WithDescription(
+                "Público. Aplica las mismas reglas de disponibilidad que la búsqueda en el momento de la consulta; si la " +
+                "venta no está disponible (agotada, desactivada, vencida, no apta, donación o establecimiento no habilitado) " +
+                "responde 404. Con latitude/longitude opcionales incluye distanceKm.")
+            .Produces<ListingSummaryResponse>()
+            .Produces<ApiError>(StatusCodes.Status400BadRequest)
+            .Produces<ApiError>(StatusCodes.Status404NotFound);
 
         api.MapGet("/listings/donations", GetDonationsAsync)
             .RequireAuthorization(AuthorizationPolicies.Organization)
@@ -217,9 +248,12 @@ public static class ListingEndpoints
     }
 
     private static async Task<IResult> GetActiveAsync(
-        DateTimeOffset? asOfUtc,
+        [Description("Instante UTC de evaluación; nunca anterior al reloj del servidor.")] DateTimeOffset? asOfUtc,
+        [Description("Latitud del punto de búsqueda (-90 a 90). Debe enviarse con longitude.")] decimal? latitude,
+        [Description("Longitud del punto de búsqueda (-180 a 180). Debe enviarse con latitude.")] decimal? longitude,
+        [Description("Radio en km, solo con latitude/longitude. Valores admitidos y defecto: GET /api/v1/listings/search-options.")] decimal? radiusKm,
         TimeProvider timeProvider,
-        IActiveListingsQueryService listings,
+        IListingSearchService listings,
         HttpContext http,
         CancellationToken cancellationToken)
     {
@@ -234,8 +268,42 @@ public static class ListingEndpoints
         var evaluationTime = asOfUtc.HasValue
             ? MaxUtc(asOfUtc.Value, timeProvider.GetUtcNow())
             : timeProvider.GetUtcNow();
-        var result = await listings.GetActiveAsync(ListingMode.Sale, evaluationTime, cancellationToken);
-        return Results.Ok(result);
+
+        try
+        {
+            var result = await listings.SearchAsync(
+                new ListingSearchCriteria(latitude, longitude, radiusKm, evaluationTime), cancellationToken);
+            return Results.Ok(result);
+        }
+        catch (ListingValidationException exception)
+        {
+            return AppError.Validation(exception.Errors).ToResult(http);
+        }
+    }
+
+    private static IResult GetSearchOptions(IListingSearchService listings) => Results.Ok(listings.GetOptions());
+
+    private static async Task<IResult> GetAvailableAsync(
+        Guid listingId,
+        [Description("Latitud opcional para calcular distanceKm. Debe enviarse con longitude.")] decimal? latitude,
+        [Description("Longitud opcional para calcular distanceKm. Debe enviarse con latitude.")] decimal? longitude,
+        TimeProvider timeProvider,
+        IListingSearchService listings,
+        HttpContext http,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var listing = await listings.FindAvailableAsync(
+                listingId, latitude, longitude, timeProvider.GetUtcNow(), cancellationToken);
+            return listing is null
+                ? Results.Json(new ApiError(ErrorCodes.NotFound, "La publicación no existe o ya no está disponible.", http.TraceIdentifier), statusCode: StatusCodes.Status404NotFound)
+                : Results.Ok(listing);
+        }
+        catch (ListingValidationException exception)
+        {
+            return AppError.Validation(exception.Errors).ToResult(http);
+        }
     }
 
     private static async Task<IResult> GetDonationsAsync(
@@ -382,4 +450,23 @@ public static class ListingEndpoints
     }
 
     public sealed record StockTransferResponse(ListingResponse Source, ListingResponse Destination);
+
+    /// <summary>Publishes the configured radii as the enum and default of radiusKm, so OpenAPI matches server validation.</summary>
+    public static OpenApiOptions AddListingSearchDocumentation(this OpenApiOptions options) =>
+        options.AddOperationTransformer((operation, context, _) =>
+        {
+            if (context.Description.ActionDescriptor.EndpointMetadata.OfType<IEndpointNameMetadata>()
+                    .FirstOrDefault()?.EndpointName != "GetActiveListings")
+                return Task.CompletedTask;
+
+            var search = context.ApplicationServices.GetRequiredService<IOptions<ListingSearchOptions>>().Value;
+            var radius = operation.Parameters?.FirstOrDefault(parameter => parameter.Name == "radiusKm");
+            if (radius?.Schema is OpenApiSchema schema)
+            {
+                schema.Enum = [.. search.AllowedRadiiKm.Select(value => JsonValue.Create(value))];
+                schema.Default = JsonValue.Create(search.DefaultRadiusKm);
+            }
+
+            return Task.CompletedTask;
+        });
 }

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using XFood.Application.Modules.Listings.Contracts;
 using XFood.Application.Modules.Listings.Services;
 using XFood.Domain.Modules.Listings;
+using XFood.Infrastructure.Modules.Establishments;
 using XFood.Infrastructure.Persistence;
 
 namespace XFood.Infrastructure.Modules.Listings;
@@ -13,13 +14,15 @@ public sealed class ActiveListingsQueryService(XFoodDbContext db) : IActiveListi
         DateTimeOffset asOfUtc,
         CancellationToken cancellationToken = default)
     {
+        var enabledEstablishments = PublicEstablishmentQueries.Enabled(db);
         return await db.Set<Listing>()
             .AsNoTracking()
             .Where(listing => listing.Status == ListingStatus.Active
                 && listing.Mode == mode
                 && listing.AvailableQuantity > 0
                 && listing.IsFoodFit
-                && listing.PickupDeadlineUtc > asOfUtc)
+                && listing.PickupDeadlineUtc > asOfUtc
+                && enabledEstablishments.Any(establishment => establishment.Id == listing.EstablishmentId))
             .OrderBy(listing => listing.PickupDeadlineUtc)
             .ThenBy(listing => listing.Id)
             .Select(listing => new ListingResponse

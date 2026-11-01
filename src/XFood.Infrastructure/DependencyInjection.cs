@@ -41,6 +41,13 @@ public static class DependencyInjection
         services.AddScoped<IManageListingStockService, ManageListingStockService>();
         services.AddScoped<IManageListingFitnessService, ManageListingFitnessService>();
         services.AddScoped<IListingExpiryAlertService, ListingExpiryAlertService>();
+        services.AddScoped<IListingSearchService, ListingSearchService>();
+
+        services.AddOptions<ListingSearchOptions>()
+            .Bind(configuration.GetSection(ListingSearchOptions.SectionName))
+            .Validate(options => options.IsValid(),
+                "Listing search needs distinct positive radii, a default radius among them and a positive result limit.")
+            .ValidateOnStart();
 
         services.AddOptions<ExpiryAlertOptions>()
             .Bind(configuration.GetSection(ExpiryAlertOptions.SectionName))

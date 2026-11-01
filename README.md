@@ -2,7 +2,7 @@
 
 Backend para conectar establecimientos con excedentes alimentarios, consumidores y organizaciones beneficiarias. Es un **monolito modular**: una API desplegable y una base SQL Server, con separación de Dominio, Aplicación, Infraestructura y presentación HTTP.
 
-Actualmente incluye el modelo de datos, migraciones, registro e inicio de sesión por rol (HU-04, sesión por cookie para el panel web) y pruebas. Los demás casos de uso, la autenticación de la app móvil y los trabajadores de notificaciones aún deben implementarse. Flutter y React/Next.js son clientes previstos.
+Actualmente incluye el modelo de datos, migraciones, registro e inicio de sesión por rol (HU-04, sesión por cookie para el panel web), perfil de establecimientos y publicaciones (HU-01), búsqueda pública de ofertas cercanas con detalle (HU-02, backend) y pruebas. Los demás casos de uso, la autenticación de la app móvil y los trabajadores de notificaciones aún deben implementarse. Flutter y React/Next.js son clientes previstos.
 
 ## Tecnologías y requisitos
 
@@ -23,6 +23,7 @@ Actualmente incluye el modelo de datos, migraciones, registro e inicio de sesió
 | `src/XFood.Api` | Única aplicación ejecutable y composición HTTP |
 | `tests/XFood.Architecture.Tests` | Pruebas de modelo, migraciones y dependencias |
 | `docs/modelo-datos.md` | Diseño de datos y decisiones |
+| `docs/HU-01-Cierre.md`, `docs/HU-02-Cierre.md` | Alcance, contrato y decisiones de producto de cada historia |
 | `docs/sql/AddV1DataModel.sql` | SQL idempotente de avance desde Identity a negocio |
 
 Los módulos se organizan bajo `Modules`: Identity (cuentas y acceso), Establishments (perfiles y responsables), Listings (catálogo, publicaciones y stock), Reservations (reservas y entregas), Donations (organizaciones, verificación y recepciones), Notifications (bandeja, dispositivos y outbox), Administration (incidencias y reportes).
@@ -57,11 +58,11 @@ dotnet user-secrets set "ConnectionStrings:XFood" "Server=.\SQLEXPRESS;Database=
 
 ## Crear o actualizar la base local
 
-Las migraciones existentes son `20261030065020_InitialIdentity` y `20261030234244_AddV1DataModel`. El comando siguiente crea la base configurada si no existe y aplica solo las migraciones pendientes. Verifique servidor y base antes de ejecutarlo; una base compartida requiere coordinación y revisión del SQL. Si existen correos normalizados duplicados, el nuevo índice único de Identity impedirá actualizar hasta resolverlos.
+Las migraciones existentes son `20261030065020_InitialIdentity`, `20261030234244_AddV1DataModel` y `20261101171937_AuditHu01Edits`. El comando siguiente crea la base configurada si no existe y aplica solo las migraciones pendientes. Verifique servidor y base antes de ejecutarlo; una base compartida requiere coordinación y revisión del SQL. Si existen correos normalizados duplicados, el nuevo índice único de Identity impedirá actualizar hasta resolverlos.
 
 ```powershell
 $env:ASPNETCORE_ENVIRONMENT='Development'
-dotnet tool run dotnet-ef database update 20261030234244_AddV1DataModel --project src/XFood.Infrastructure --startup-project src/XFood.Api --context XFoodDbContext
+dotnet tool run dotnet-ef database update 20261101171937_AuditHu01Edits --project src/XFood.Infrastructure --startup-project src/XFood.Api --context XFoodDbContext
 ```
 
 No use `EnsureCreated` con esta estrategia. No elimine el historial ni edite migraciones ya aplicadas. El catálogo queda vacío: sus valores iniciales requieren aprobación. No hay usuarios, roles de negocio ni credenciales precargados.
@@ -78,6 +79,7 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 - Vida del proceso: `https://localhost:7293/health/live` (no comprueba disponibilidad de SQL Server).
 - Documento OpenAPI JSON en Development: `https://localhost:7293/openapi/v1.json`.
 - No hay Swagger UI configurada. Las rutas de negocio usan `/api/v1`; las de cuentas y sesión están descritas en `src/XFood.Application/Modules/Identity/README.md`.
+- Búsqueda pública (HU-02): `GET /api/v1/listings?latitude=&longitude=&radiusKm=`, `GET /api/v1/listings/{id}` y `GET /api/v1/listings/search-options`. Radios, radio por defecto y máximo de resultados se configuran en `Listings:Search` de `appsettings.json`; contrato y decisiones en `docs/HU-02-Cierre.md`.
 
 ## Pruebas
 
@@ -85,7 +87,7 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 dotnet test XFood.slnx --no-build
 ```
 
-`XFood.Architecture.Tests` inspecciona el modelo y las migraciones sin conectarse a una base. `XFood.Api.Tests` prueba los casos de uso y el contrato HTTP de Identity con dobles y, en `Integration/`, el recorrido real contra SQL Server: transacción de registro y su reversión, bloqueo tras cinco intentos, cookie, login → `/me` → logout y protección CSRF.
+`XFood.Architecture.Tests` inspecciona el modelo y las migraciones sin conectarse a una base. `XFood.Api.Tests` prueba los casos de uso y el contrato HTTP de Identity con dobles y, en `Integration/`, el recorrido real contra SQL Server: transacción de registro y su reversión, bloqueo tras cinco intentos, cookie, login → `/me` → logout y protección CSRF; las operaciones de HU-01 y la búsqueda geográfica de HU-02 (radios, filtros de disponibilidad y recorrido HU-01 → búsqueda).
 
 Las pruebas de integración usan **su propia configuración**, nunca los User Secrets de la API: la variable `XFOOD_TEST_SQLSERVER` con una cadena de conexión al servidor (se ignora el nombre de base). Cada ejecución crea `XFood_Tests_<guid>`, aplica las migraciones y la borra al terminar. Antes de migrar o borrar, el código comprueba que el nombre tenga ese formato y nunca sea `XFoodDB`. Sin la variable, esas pruebas aparecen como omitidas.
 
