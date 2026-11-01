@@ -98,7 +98,7 @@ No se necesita. No cambia el esquema y el índice de coordenadas ya existía. `h
 - **Recorrido HU-01 → HU-02:** una venta creada con `ICreateListingService` aparece dentro del radio. Desaparece de la lista y del detalle al agotarse (retiro de stock), al desactivarse, al pasar su fecha límite o al suspenderse el establecimiento.
 - Las entradas inválidas devuelven 400 con el campo afectado.
 
-**Resultado:** con `XFOOD_REQUIRE_SQL_TESTS=true` sobre `.\SQLEXPRESS` pasaron **182 pruebas de API y 24 de arquitectura: 206 correctas, ninguna fallida y ninguna omitida**. Son las 163 anteriores más 43 nuevas. Al terminar no quedó ninguna base `XFood_Tests_*`.
+**Resultado:** con `XFOOD_REQUIRE_SQL_TESTS=true` sobre `.\SQLEXPRESS` pasaron **185 pruebas de API y 24 de arquitectura: 209 correctas, ninguna fallida y ninguna omitida**. Son las 163 de la base, 43 nuevas de HU-02 y 3 de HU-01 llegadas de `develop` (con la migración `SeedInitialCategories`). Al terminar no quedó ninguna base `XFood_Tests_*`.
 
 ## Pendiente o fuera del alcance
 
