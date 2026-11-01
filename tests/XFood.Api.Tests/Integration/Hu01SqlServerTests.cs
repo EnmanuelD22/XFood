@@ -1,8 +1,12 @@
+using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using XFood.Application.Modules.Establishments.Contracts;
+using XFood.Api.Modules.Identity;
 using XFood.Application.Modules.Establishments.Services;
 using XFood.Application.Modules.Listings;
 using XFood.Application.Modules.Listings.Contracts;
@@ -17,6 +21,74 @@ namespace XFood.Api.Tests.Integration;
 public sealed class Hu01SqlServerTests(SqlServerApiFixture fixture) : IClassFixture<SqlServerApiFixture>
 {
     private sealed record Seed(Guid UserId, Guid EstablishmentId, Guid CategoryId, Guid ListingId, Guid? DestinationId);
+
+    [SqlServerFact]
+    public async Task Web_flow_lists_own_sale_after_creation_and_deactivation()
+    {
+        using var client = fixture.Factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"), HandleCookies = false,
+        });
+        var email = $"panel-{Guid.NewGuid():N}@xfood.test";
+        var registration = await client.PostAsJsonAsync("/api/v1/auth/register", new
+        {
+            email, password = "Clave#2026", displayName = "Panel", role = "Establishment",
+            establishment = new { name = "Panadería", contactPhone = "809-555-0101", address = "Calle 1", latitude = 18.5, longitude = -69.9 },
+        });
+        Assert.Equal(HttpStatusCode.Created, registration.StatusCode);
+        var establishmentId = Assert.Single((await registration.Content.ReadFromJsonAsync<AccountResponse>())!.Establishments!).Id;
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "Clave#2026" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        var cookie = login.Headers.GetValues("Set-Cookie").Single(x => x.StartsWith("XFood.Session=", StringComparison.Ordinal)).Split(';')[0];
+
+        var categoryId = Guid.NewGuid();
+        using (var scope = fixture.Factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<XFoodDbContext>();
+            db.Add(new Category { Id = categoryId, Name = "Categoría de prueba", IsActive = true, CreatedAtUtc = DateTimeOffset.UtcNow });
+            await db.SaveChangesAsync();
+        }
+        var categories = await client.GetFromJsonAsync<List<CategoryResponse>>("/api/v1/categories");
+        Assert.Contains(categories!, x => x.Id == categoryId);
+
+        var now = DateTimeOffset.UtcNow;
+        using var createRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/listings")
+        {
+            Content = JsonContent.Create(new
+            {
+                establishmentId, categoryId, title = "Venta", description = "Apto", initialQuantity = 2,
+                pickupInstructions = "Recoger", pickupStartsAtUtc = now.AddHours(1), pickupDeadlineUtc = now.AddHours(3),
+                originalUnitPrice = 100, discountedUnitPrice = 60, paymentInstructions = "Pago en caja", foodSafetyDeclared = true,
+            }),
+        };
+        createRequest.Headers.Add("Cookie", cookie);
+        createRequest.Headers.Add("Origin", SqlServerApiFixture.PanelOrigin);
+        var created = await client.SendAsync(createRequest);
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var listingId = (await created.Content.ReadFromJsonAsync<ListingResponse>())!.Id;
+
+        async Task<HttpResponseMessage> OwnList(Guid id)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"/api/v1/establishments/{id}/listings");
+            request.Headers.Add("Cookie", cookie);
+            return await client.SendAsync(request);
+        }
+        using var own = await OwnList(establishmentId);
+        Assert.Equal(HttpStatusCode.OK, own.StatusCode);
+        Assert.Contains((await own.Content.ReadFromJsonAsync<List<ListingResponse>>())!, x => x.Id == listingId && x.Status == ListingStatus.Active);
+        using var foreign = await OwnList(Guid.NewGuid());
+        Assert.Equal(HttpStatusCode.Forbidden, foreign.StatusCode);
+
+        using var deactivateRequest = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/listings/{listingId}/deactivate")
+        {
+            Content = JsonContent.Create(new { reason = "Retirado" }),
+        };
+        deactivateRequest.Headers.Add("Cookie", cookie);
+        deactivateRequest.Headers.Add("Origin", SqlServerApiFixture.PanelOrigin);
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(deactivateRequest)).StatusCode);
+        using var after = await OwnList(establishmentId);
+        Assert.Contains((await after.Content.ReadFromJsonAsync<List<ListingResponse>>())!, x => x.Id == listingId && x.Status == ListingStatus.Deactivated);
+    }
 
     private async Task<Seed> SeedAsync(int available = 2, bool destination = false)
     {
@@ -48,6 +120,30 @@ public sealed class Hu01SqlServerTests(SqlServerApiFixture fixture) : IClassFixt
             FoodSafetyDeclared = true, IsFoodFit = true, PickupStartsAtUtc = now.AddHours(1),
             PickupDeadlineUtc = now.AddHours(3), CreatedAtUtc = now,
         };
+    }
+
+    [SqlServerFact]
+    public async Task Establishment_read_includes_all_statuses_and_categories_are_active_only()
+    {
+        var seed = await SeedAsync(destination: true);
+        using var scope = fixture.Factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<XFoodDbContext>();
+        var other = await db.Set<Listing>().SingleAsync(x => x.Id == seed.DestinationId);
+        other.Status = ListingStatus.Deactivated;
+        db.Add(new Category { Id = Guid.NewGuid(), Name = "Inactiva", IsActive = false, CreatedAtUtc = DateTimeOffset.UtcNow });
+        await db.SaveChangesAsync();
+
+        var reads = scope.ServiceProvider.GetRequiredService<IListingReadService>();
+        var own = await reads.GetForEstablishmentAsync(seed.EstablishmentId, seed.UserId);
+        Assert.Equal(2, own.Count);
+        Assert.Contains(own, x => x.Id == seed.ListingId && x.Status == ListingStatus.Active);
+        Assert.Contains(own, x => x.Id == seed.DestinationId && x.Status == ListingStatus.Deactivated);
+        await Assert.ThrowsAsync<ListingForbiddenException>(() =>
+            reads.GetForEstablishmentAsync(seed.EstablishmentId, Guid.NewGuid()));
+
+        var categories = await reads.GetActiveCategoriesAsync();
+        Assert.Contains(categories, x => x.Id == seed.CategoryId);
+        Assert.DoesNotContain(categories, x => x.Name == "Inactiva");
     }
 
     [SqlServerFact]

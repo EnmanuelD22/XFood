@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IEstablishmentOnboarding, EstablishmentOnboarding>();
         services.AddScoped<IEstablishmentProfileService, EstablishmentProfileService>();
         services.AddScoped<IActiveListingsQueryService, ActiveListingsQueryService>();
+        services.AddScoped<IListingReadService, ListingReadService>();
         services.AddScoped<ICreateListingService, CreateListingService>();
         services.AddScoped<ICreateDonationListingService, CreateDonationListingService>();
         services.AddScoped<IManageListingService, ManageListingService>();

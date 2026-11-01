@@ -2,12 +2,14 @@
 
 ## Alcance
 
-HU-01 cubre el backend de establecimientos y publicaciones bajo responsabilidad de Carlos. La implementación conserva la separación por capas y reutiliza `IEstablishmentOnboarding` de HU-04 para resolver membresías y autorización. No se han añadido semillas, categorías inventadas, filtros geográficos, paginación, detalle individual ni procesos ficticios de otros módulos.
+HU-01 cubre el backend de establecimientos y publicaciones bajo responsabilidad de Carlos. La implementación conserva la separación por capas y reutiliza `IEstablishmentOnboarding` de HU-04 para resolver membresías y autorización. El catálogo inicial se añadió después por decisión de Producto. Los filtros geográficos, la paginación, el detalle público y los procesos de otros módulos siguen fuera de este cambio.
 
 ## Funcionalidades implementadas
 
 - Perfil de establecimiento: `GET /api/v1/establishments/{establishmentId}` y `PUT /api/v1/establishments/{establishmentId}`.
 - Publicaciones activas: `GET /api/v1/listings`, con fecha opcional `asOfUtc` obligatoriamente UTC.
+- Publicaciones propias: `GET /api/v1/establishments/{establishmentId}/listings`, autenticada y con comprobación de membresía, devuelve todas las modalidades y estados persistidos del establecimiento.
+- Categorías activas: `GET /api/v1/categories`, devuelve identificador y nombre de las categorías activas. La migración `20261101212804_SeedInitialCategories` aporta seis valores iniciales aprobados para arrancar el piloto.
 - Creación de Sale: `POST /api/v1/listings`.
 - Creación de Donation: `POST /api/v1/listings/donations`.
 - Edición y desactivación: `PATCH /api/v1/listings/{listingId}` y `POST /api/v1/listings/{listingId}/deactivate`.
@@ -27,7 +29,7 @@ Listings es el único propietario de las cantidades. El balance se mantiene medi
 
 ## Categorías
 
-`Category` existe y las publicaciones validan que la categoría exista y esté activa según el modelo disponible. No existe un endpoint de catálogo activo ni datos iniciales porque no están definidos un catálogo, identificadores, orden ni aprobación de producto. Producto debe proporcionar y aprobar esos valores; Juan Eliud debe confirmar el contrato que consumirá el frontend.
+`Category` existe y las publicaciones validan que la categoría exista y esté activa. `GET /api/v1/categories` permite consultar las activas, ordenadas por nombre. La migración `SeedInitialCategories` agrega, con identificadores estables: Comidas preparadas; Panadería y repostería; Frutas y verduras; Lácteos y huevos; Carnes y pescados; Alimentos envasados. Se pueden desactivar sin cambiar publicaciones históricas. El equipo deberá revisar este catálogo con usuarios del piloto antes de ampliarlo.
 
 ## Alertas y Notifications
 
@@ -49,7 +51,7 @@ No se identifica un requisito obligatorio de HU-01 con implementación local cla
 
 ### PENDIENTE DE APROBACIÓN
 
-Producto debe aprobar el catálogo inicial de categorías, sus identificadores, nombres, orden y ciclo de activación. Juan Eliud debe confirmar para el frontend el uso de `/me`, los DTO finales, rutas de perfil, formato de fechas, errores, filtros permitidos y si se requiere una consulta de categorías. No se han marcado esas decisiones como resueltas.
+Juan Eliud debe confirmar para el frontend el uso de `/me`, los DTO finales, rutas de perfil, formato de fechas y errores. El catálogo inicial ya tiene seis valores y consulta pública; ampliaciones y orden de presentación para el piloto se coordinan con Producto.
 
 ### DEPENDENCIA EXTERNA
 
@@ -57,13 +59,15 @@ Wilmer/HU-04 mantiene identidad, roles y ciclo de membresías. Reservations debe
 
 ### FUERA DEL ALCANCE
 
-Búsqueda geográfica por distancia, paginación, filtros no aprobados, detalle individual no implementado, semillas de categorías, reservas/aceptaciones operativas, envío push y procesos de otros módulos.
+Búsqueda geográfica por distancia, paginación, filtros no aprobados, detalle individual no implementado, reservas/aceptaciones operativas, envío push y procesos de otros módulos.
 
 ## Migración y validación de entrega
 
 `20261101171937_AuditHu01Edits` agrega únicamente `establishments.EstablishmentProfileRevisions` y `listings.ListingRevisions`, con actor referenciado a `identity.Users`, fecha UTC, referencias al recurso, índices y JSON válido. Su script ascendente solo crea tablas, claves, índices y restricciones; no altera las migraciones previas ni elimina datos. El snapshot coincide con el modelo EF Core.
 
-La restauración y compilación terminaron sin errores. Con la instancia predeterminada local `MSSQLSERVER` y las pruebas SQL obligatorias se ejecutaron **139 pruebas de API y 24 de arquitectura: 163 correctas, cero fallidas y cero omitidas**. Las tres nuevas pruebas de HU-01 verificaron auditoría persistida, conflicto sobre la última unidad y transferencia atómica en bases aisladas `XFood_Tests_<guid>`. La fixture aplicó allí todas las migraciones, incluida `AuditHu01Edits`, y eliminó las bases al finalizar; una consulta posterior confirmó que no quedaba ninguna `XFood_Tests_*`. Comando usado:
+`20261101212804_SeedInitialCategories` inserta seis categorías con GUID fijos y fecha UTC; no altera tablas ni elimina datos en su avance. Su reversión intenta borrar esas filas y la clave foránea impide borrar una categoría que ya tenga publicaciones.
+
+La restauración y compilación terminaron sin errores. Con la instancia predeterminada local `MSSQLSERVER` y las pruebas SQL obligatorias se ejecutaron **142 pruebas de API y 24 de arquitectura: 166 correctas, cero fallidas y cero omitidas**. Las pruebas nuevas verificaron lectura propia, categorías activas, autorización y el recorrido web de creación y desactivación, además de auditoría, conflicto de última unidad y transferencia atómica. La fixture aplicó todas las migraciones, incluida `SeedInitialCategories`, en bases aisladas `XFood_Tests_<guid>` y las eliminó al finalizar. Comando usado:
 
 ```powershell
 $env:XFOOD_TEST_SQLSERVER='Server=localhost;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'

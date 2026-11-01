@@ -115,6 +115,14 @@ public sealed class ListingApiTests : IClassFixture<ListingApiTests.Factory>
     }
 
     [Fact]
+    public async Task Establishment_list_without_a_session_returns_401()
+    {
+        var response = await client.GetAsync($"/api/v1/establishments/{Guid.NewGuid()}/listings");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("UNAUTHENTICATED", (await response.Content.ReadFromJsonAsync<XFood.Api.Http.ApiError>())!.Code);
+    }
+
+    [Fact]
     public async Task Create_sale_without_a_session_returns_401()
     {
         var response = await client.PostAsJsonAsync("/api/v1/listings", new { });

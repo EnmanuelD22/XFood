@@ -32,6 +32,7 @@ app.MapGet("/health/live", () => Results.Ok(new { status = "live" }))
 var api = app.MapGroup("/api/v1");
 api.MapIdentityEndpoints();
 api.MapListingEndpoints();
+api.MapListingReadEndpoints();
 api.MapEstablishmentProfileEndpoints();
 
 app.Run();
