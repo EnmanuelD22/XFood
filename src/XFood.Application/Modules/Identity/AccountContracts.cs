@@ -1,5 +1,6 @@
 using XFood.Application.Common;
 using XFood.Domain.Modules.Donations;
+using XFood.Domain.Modules.Establishments;
 using XFood.Domain.Modules.Identity;
 
 namespace XFood.Application.Modules.Identity;
@@ -9,13 +10,25 @@ public sealed record RegisterAccountCommand(
     string? Password,
     string? DisplayName,
     string? Role,
-    RegisterOrganizationData? Organization);
+    RegisterOrganizationData? Organization,
+    RegisterEstablishmentData? Establishment = null);
 
 public sealed record RegisterOrganizationData(
     string? Name,
     string? ContactPhone,
     string? Address,
     string? VerificationInformation);
+
+/// <summary>Coordinates are nullable so that a missing value is reported instead of defaulting to 0.</summary>
+public sealed record RegisterEstablishmentData(
+    string? Name,
+    string? ContactPhone,
+    string? Address,
+    decimal? Latitude,
+    decimal? Longitude,
+    string? TimeZoneId = null,
+    string? ContactName = null,
+    string? ContactEmail = null);
 
 public sealed record LoginCommand(string? Email, string? Password);
 
@@ -25,9 +38,21 @@ public sealed record NewAccount(
     string Password,
     string DisplayName,
     string Role,
-    NewOrganization? Organization);
+    NewOrganization? Organization,
+    NewEstablishment? Establishment = null);
 
 public sealed record NewOrganization(string Name, string ContactPhone, string Address, string? VerificationInformation);
+
+/// <summary>Contact name and email are already resolved (defaulted from the account when omitted).</summary>
+public sealed record NewEstablishment(
+    string Name,
+    string ContactName,
+    string ContactEmail,
+    string ContactPhone,
+    string Address,
+    decimal Latitude,
+    decimal Longitude,
+    string TimeZoneId);
 
 public sealed record AccountSummary(
     Guid UserId,
@@ -35,9 +60,12 @@ public sealed record AccountSummary(
     string DisplayName,
     string Role,
     AccountStatus Status,
-    OrganizationSummary? Organization);
+    OrganizationSummary? Organization,
+    IReadOnlyList<EstablishmentSummary>? Establishments = null);
 
 public sealed record OrganizationSummary(Guid Id, string Name, VerificationStatus VerificationStatus);
+
+public sealed record EstablishmentSummary(Guid Id, string Name, EstablishmentStatus Status, EstablishmentMemberRole MemberRole, bool IsPrimary);
 
 public enum CredentialCheckOutcome { Valid = 1, Invalid = 2, LockedOut = 3 }
 
@@ -59,5 +87,6 @@ public interface ISessionManager
 {
     Task SignInAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>Ends the current session and revokes every cookie already issued to the user.</summary>
     Task SignOutAsync(CancellationToken cancellationToken);
 }

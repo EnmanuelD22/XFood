@@ -30,8 +30,14 @@ internal sealed class CookieSessionManager(
         await Http.SignInAsync(IdentityConstants.ApplicationScheme, principal, new AuthenticationProperties { IsPersistent = false });
     }
 
-    public Task SignOutAsync(CancellationToken cancellationToken) =>
-        Http.SignOutAsync(IdentityConstants.ApplicationScheme);
+    public async Task SignOutAsync(CancellationToken cancellationToken)
+    {
+        // Rotating the security stamp makes SessionValidation reject any copy of the cookie,
+        // not only the one this browser deletes. It also ends the user's sessions on other browsers.
+        if (await users.GetUserAsync(Http.User) is { } user)
+            await users.UpdateSecurityStampAsync(user);
+        await Http.SignOutAsync(IdentityConstants.ApplicationScheme);
+    }
 }
 
 /// <summary>

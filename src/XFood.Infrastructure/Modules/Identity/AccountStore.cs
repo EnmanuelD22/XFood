@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using XFood.Application.Common;
 using XFood.Application.Modules.Donations;
+using XFood.Application.Modules.Establishments;
 using XFood.Application.Modules.Identity;
 using XFood.Domain.Modules.Identity;
 using XFood.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ internal sealed class AccountStore(
     UserManager<IdentityUser<Guid>> users,
     RoleManager<IdentityRole<Guid>> roles,
     IOrganizationOnboarding organizations,
+    IEstablishmentOnboarding establishments,
     TimeProvider clock) : IAccountStore
 {
     private static readonly IdentityUser<Guid> TimingUser = new();
@@ -23,8 +25,8 @@ internal sealed class AccountStore(
     {
         await EnsureRoleAsync(account.Role);
 
-        // UserManager saves on each call; the explicit transaction makes user, role, profile and
-        // organization a single commit, so a failure never leaves a half-registered account.
+        // UserManager saves on each call; the explicit transaction makes user, role, profile and the
+        // organization or establishment a single commit, so a failure never leaves a half-registered account.
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var now = clock.GetUtcNow();
         var user = new IdentityUser<Guid> { Id = Guid.CreateVersion7(), UserName = account.Email, Email = account.Email };
@@ -67,11 +69,20 @@ internal sealed class AccountStore(
             organization = new OrganizationSummary(staged.OrganizationId, staged.Name, staged.VerificationStatus);
         }
 
+        IReadOnlyList<EstablishmentSummary>? ownedEstablishments = null;
+        if (account.Establishment is { } profile)
+        {
+            var staged = establishments.StageEstablishment(new NewEstablishmentProfile(
+                user.Id, profile.Name, profile.ContactName, profile.ContactEmail, profile.ContactPhone, profile.Address,
+                profile.Latitude, profile.Longitude, profile.TimeZoneId, now));
+            ownedEstablishments = [ToSummary(staged)];
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         return Result<AccountSummary>.Success(new AccountSummary(
-            user.Id, account.Email, account.DisplayName, account.Role, AccountStatus.Active, organization));
+            user.Id, account.Email, account.DisplayName, account.Role, AccountStatus.Active, organization, ownedEstablishments));
     }
 
     public async Task<CredentialCheck> CheckCredentialsAsync(string email, string password, CancellationToken cancellationToken)
@@ -128,8 +139,15 @@ internal sealed class AccountStore(
             organization = new OrganizationSummary(membership.OrganizationId, membership.Name, membership.VerificationStatus);
         }
 
-        return new AccountSummary(account.Id, account.Email!, account.DisplayName, role, account.Status, organization);
+        IReadOnlyList<EstablishmentSummary>? memberships = null;
+        if (role == AccountRoles.Establishment)
+            memberships = (await establishments.ListActiveMembershipsAsync(userId, cancellationToken)).Select(ToSummary).ToList();
+
+        return new AccountSummary(account.Id, account.Email!, account.DisplayName, role, account.Status, organization, memberships);
     }
+
+    private static EstablishmentSummary ToSummary(EstablishmentMembershipSummary membership) =>
+        new(membership.EstablishmentId, membership.Name, membership.Status, membership.MemberRole, membership.IsPrimary);
 
     private async Task EnsureRoleAsync(string role)
     {

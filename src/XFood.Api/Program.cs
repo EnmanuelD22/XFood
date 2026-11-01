@@ -20,6 +20,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors(IdentitySetup.PanelCorsPolicy);
+app.UseOriginValidation();
 app.UseAuthentication();
 app.UseAuthorization();
 

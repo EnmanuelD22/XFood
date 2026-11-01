@@ -85,7 +85,19 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 dotnet test XFood.slnx --no-build
 ```
 
-`XFood.Architecture.Tests` inspecciona el modelo y las migraciones y `XFood.Api.Tests` prueba los casos de uso y el contrato HTTP de Identity; ninguna se conecta a una base. Existe además una validación real opcional de SQL Server:
+`XFood.Architecture.Tests` inspecciona el modelo y las migraciones sin conectarse a una base. `XFood.Api.Tests` prueba los casos de uso y el contrato HTTP de Identity con dobles y, en `Integration/`, el recorrido real contra SQL Server: transacción de registro y su reversión, bloqueo tras cinco intentos, cookie, login → `/me` → logout y protección CSRF.
+
+Las pruebas de integración usan **su propia configuración**, nunca los User Secrets de la API: la variable `XFOOD_TEST_SQLSERVER` con una cadena de conexión al servidor (se ignora el nombre de base). Cada ejecución crea `XFood_Tests_<guid>`, aplica las migraciones y la borra al terminar. Antes de migrar o borrar, el código comprueba que el nombre tenga ese formato y nunca sea `XFoodDB`. Sin la variable, esas pruebas aparecen como omitidas.
+
+**Antes de integrar en `develop` deben ejecutarse con SQL Server** (el repositorio no tiene CI). Con `XFOOD_REQUIRE_SQL_TESTS=true`, una configuración ausente hace fallar las pruebas en lugar de omitirlas:
+
+```powershell
+$env:XFOOD_TEST_SQLSERVER='Server=.\SQLEXPRESS;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
+$env:XFOOD_REQUIRE_SQL_TESTS='true'
+dotnet test XFood.slnx
+```
+
+La protección CSRF de la API usa `Cors:PanelOrigins` y `Security:ApiOrigins` (vacíos por defecto, `localhost` en Development); configúrelos con las URL públicas en cada entorno. Existe además una validación real opcional de SQL Server:
 
 ```powershell
 ./tests/Validate-IsolatedSqlServer.ps1

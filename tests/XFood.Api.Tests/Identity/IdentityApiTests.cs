@@ -19,6 +19,9 @@ namespace XFood.Api.Tests.Identity;
 /// </summary>
 public sealed class IdentityApiTests : IClassFixture<IdentityApiTests.Factory>
 {
+    internal const string PanelOrigin = "https://panel.xfood.test";
+    internal const string ApiOrigin = "https://api.xfood.test";
+
     public sealed class Factory : WebApplicationFactory<Program>
     {
         internal FakeAccountStore Store { get; } = new FakeAccountStore()
@@ -29,6 +32,8 @@ public sealed class IdentityApiTests : IClassFixture<IdentityApiTests.Factory>
         {
             builder.UseEnvironment("Testing");
             builder.UseSetting("ConnectionStrings:XFood", "Server=unused.invalid;Database=Unused");
+            builder.UseSetting("Cors:PanelOrigins:0", PanelOrigin);
+            builder.UseSetting("Security:ApiOrigins:0", ApiOrigin);
             builder.ConfigureTestServices(services =>
             {
                 services.AddSingleton<IAccountStore>(Store);
@@ -43,7 +48,7 @@ public sealed class IdentityApiTests : IClassFixture<IdentityApiTests.Factory>
     public IdentityApiTests(Factory factory)
     {
         this.factory = factory;
-        client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+        client = factory.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), HandleCookies = false });
     }
 
     [Fact]
@@ -106,8 +111,11 @@ public sealed class IdentityApiTests : IClassFixture<IdentityApiTests.Factory>
     [Fact]
     public async Task Valid_registration_returns_201()
     {
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register",
-            new { email = "nuevo@xfood.test", password = "Clave#2026", displayName = "Nuevo", role = "Establishment" });
+        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new
+        {
+            email = "nuevo@xfood.test", password = "Clave#2026", displayName = "Nuevo", role = "Establishment",
+            establishment = new { name = "Colmado", contactPhone = "809-555-0103", address = "Calle 2", latitude = 18.47, longitude = -69.9 },
+        });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         Assert.Equal("/api/v1/me", response.Headers.Location?.OriginalString);
@@ -125,11 +133,78 @@ public sealed class IdentityApiTests : IClassFixture<IdentityApiTests.Factory>
     }
 
     [Fact]
-    public async Task Logout_returns_204()
+    public async Task Logout_without_a_session_returns_401()
     {
         var response = await client.PostAsync("/api/v1/auth/logout", null);
 
-        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal("UNAUTHENTICATED", (await response.Content.ReadFromJsonAsync<ApiError>())!.Code);
+    }
+
+    private async Task<HttpResponseMessage> LoginWithHeadersAsync(string email, params (string Name, string Value)[] headers)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+        {
+            Content = JsonContent.Create(new { email, password = "Clave#2026" }),
+        };
+        foreach (var (name, value) in headers)
+            request.Headers.TryAddWithoutValidation(name, value);
+        return await client.SendAsync(request);
+    }
+
+    [Theory]
+    [InlineData("Origin", "https://evil.example")]
+    [InlineData("Origin", "null")]
+    [InlineData("Origin", "https://panel.xfood.test.evil.example")]
+    [InlineData("Origin", "http://panel.xfood.test")]          // same host, different scheme
+    [InlineData("Referer", "https://evil.example/pagina")]     // no Origin: Referer is checked
+    public async Task State_changing_request_from_an_untrusted_origin_is_rejected_before_the_endpoint(string header, string value)
+    {
+        var email = $"csrf-{Guid.NewGuid():N}@xfood.test";
+        factory.Store.WithAccount(email, "Clave#2026", AccountRoles.Consumer);
+
+        var response = await LoginWithHeadersAsync(email, (header, value));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("FORBIDDEN", (await response.Content.ReadFromJsonAsync<ApiError>())!.Code);
+    }
+
+    [Theory]
+    [InlineData("Origin", PanelOrigin)]
+    [InlineData("Origin", "HTTPS://PANEL.XFOOD.TEST:443")]   // same origin, other spelling
+    [InlineData("Origin", ApiOrigin)]
+    [InlineData("Referer", PanelOrigin + "/login")]
+    public async Task Trusted_origins_reach_the_endpoint(string header, string value)
+    {
+        var response = await LoginWithHeadersAsync("ana@xfood.test", (header, value));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Request_without_origin_and_without_session_cookie_is_allowed_for_non_browser_clients()
+    {
+        var response = await LoginWithHeadersAsync("ana@xfood.test");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Request_with_session_cookie_but_without_origin_is_rejected()
+    {
+        var response = await LoginWithHeadersAsync("ana@xfood.test", ("Cookie", "XFood.Session=cualquier-valor"));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("FORBIDDEN", (await response.Content.ReadFromJsonAsync<ApiError>())!.Code);
+    }
+
+    [Fact]
+    public async Task Safe_methods_are_not_checked()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/health/live");
+        request.Headers.TryAddWithoutValidation("Origin", "https://evil.example");
+
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(request)).StatusCode);
     }
 
     public static TheoryData<string, string, bool> RolePolicyCases => new()

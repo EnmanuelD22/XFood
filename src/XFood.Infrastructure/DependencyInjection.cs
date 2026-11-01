@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using XFood.Application.Modules.Donations;
+using XFood.Application.Modules.Establishments;
 using XFood.Infrastructure.Persistence;
 using XFood.Infrastructure.Modules.Donations;
+using XFood.Infrastructure.Modules.Establishments;
 using XFood.Infrastructure.Modules.Identity;
 using XFood.Infrastructure.Modules.Notifications;
 
@@ -27,6 +29,7 @@ public static class DependencyInjection
 
         services.AddIdentityModule(configuration);
         services.AddScoped<IOrganizationOnboarding, OrganizationOnboarding>();
+        services.AddScoped<IEstablishmentOnboarding, EstablishmentOnboarding>();
 
         services.AddOptions<ExpiryAlertOptions>()
             .Bind(configuration.GetSection(ExpiryAlertOptions.SectionName))

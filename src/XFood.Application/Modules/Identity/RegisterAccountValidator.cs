@@ -16,6 +16,13 @@ public static partial class RegisterAccountValidator
     internal const int ContactPhoneMaxLength = 32;
     internal const int AddressMaxLength = 500;
     internal const int VerificationInformationMaxLength = 4000;
+    internal const int EstablishmentNameMaxLength = 200;
+    internal const int ContactNameMaxLength = 200;
+    internal const int ContactEmailMaxLength = 320;
+    internal const int CoordinateScale = 6;
+
+    /// <summary>Assumption for the Dominican pilot (not an approved rule); clients may send any IANA zone.</summary>
+    public const string DefaultTimeZoneId = "America/Santo_Domingo";
 
     public static (NewAccount? Account, IReadOnlyDictionary<string, string[]> Errors) Validate(RegisterAccountCommand command)
     {
@@ -58,11 +65,88 @@ public static partial class RegisterAccountValidator
         else if (command.Organization is not null && role is not null)
             Add("organization", "Los datos de organización solo aplican al rol Organization.");
 
+        NewEstablishment? establishment = null;
+        if (role == AccountRoles.Establishment)
+            establishment = ValidateEstablishment(command.Establishment, displayName, email, Add);
+        else if (command.Establishment is not null && role is not null)
+            Add("establishment", "Los datos de establecimiento solo aplican al rol Establishment.");
+
         if (errors.Count > 0)
             return (null, errors.ToDictionary(e => e.Key, e => e.Value.ToArray()));
 
-        return (new NewAccount(email, command.Password!, displayName, role!, organization), new Dictionary<string, string[]>());
+        return (new NewAccount(email, command.Password!, displayName, role!, organization, establishment), new Dictionary<string, string[]>());
     }
+
+    private static NewEstablishment? ValidateEstablishment(
+        RegisterEstablishmentData? data, string accountName, string accountEmail, Action<string, string> add)
+    {
+        if (data is null)
+        {
+            add("establishment", "Los datos del establecimiento son obligatorios para el rol Establishment.");
+            return null;
+        }
+
+        var name = Required(data.Name, "establishment.name", "El nombre del establecimiento", EstablishmentNameMaxLength, add);
+        var phone = ValidPhone(Required(data.ContactPhone, "establishment.contactPhone", "El teléfono de contacto", ContactPhoneMaxLength, add),
+            "establishment.contactPhone", add);
+        var address = Required(data.Address, "establishment.address", "La dirección", AddressMaxLength, add);
+        var latitude = Coordinate(data.Latitude, 90, "establishment.latitude", "La latitud", add);
+        var longitude = Coordinate(data.Longitude, 180, "establishment.longitude", "La longitud", add);
+
+        // Supuesto del piloto dominicano, no regla aprobada: zona por defecto cuando el cliente no la envía.
+        var timeZoneId = string.IsNullOrWhiteSpace(data.TimeZoneId) ? DefaultTimeZoneId : data.TimeZoneId.Trim();
+        if (!IsIanaTimeZone(timeZoneId))
+        {
+            add("establishment.timeZoneId", "La zona horaria debe ser un identificador IANA válido, por ejemplo America/Santo_Domingo.");
+            timeZoneId = null;
+        }
+
+        // Contacto opcional: si no se envía, se usan el nombre y el correo de la cuenta.
+        var contactName = string.IsNullOrWhiteSpace(data.ContactName) ? accountName : data.ContactName.Trim();
+        if (contactName.Length > ContactNameMaxLength)
+        {
+            add("establishment.contactName", $"El nombre de contacto no puede superar {ContactNameMaxLength} caracteres.");
+            contactName = "";
+        }
+        var contactEmail = string.IsNullOrWhiteSpace(data.ContactEmail) ? accountEmail : data.ContactEmail.Trim();
+        if (contactEmail.Length > ContactEmailMaxLength || !IsValidEmail(contactEmail))
+        {
+            if (!string.IsNullOrWhiteSpace(data.ContactEmail))
+                add("establishment.contactEmail", "El correo de contacto no tiene un formato válido.");
+            contactEmail = "";
+        }
+
+        return name is null || phone is null || address is null || latitude is null || longitude is null
+            || timeZoneId is null || contactName.Length == 0 || contactEmail.Length == 0
+            ? null
+            : new NewEstablishment(name, contactName, contactEmail, phone, address, latitude.Value, longitude.Value, timeZoneId);
+    }
+
+    private static decimal? Coordinate(decimal? value, int limit, string field, string label, Action<string, string> add)
+    {
+        if (value is null)
+        {
+            add(field, $"{label} es obligatoria.");
+            return null;
+        }
+        if (value < -limit || value > limit)
+        {
+            add(field, $"{label} debe estar entre -{limit} y {limit}.");
+            return null;
+        }
+        return Math.Round(value.Value, CoordinateScale);
+    }
+
+    private static string? ValidPhone(string? phone, string field, Action<string, string> add)
+    {
+        if (phone is null || PhonePattern().IsMatch(phone))
+            return phone;
+        add(field, "El teléfono solo admite dígitos, espacios, +, -, ( y ), con al menos 7 caracteres.");
+        return null;
+    }
+
+    private static bool IsIanaTimeZone(string id) =>
+        TimeZoneInfo.TryConvertIanaIdToWindowsId(id, out _) && TimeZoneInfo.TryFindSystemTimeZoneById(id, out _);
 
     private static NewOrganization? ValidateOrganization(RegisterOrganizationData? data, Action<string, string> add)
     {
@@ -73,12 +157,8 @@ public static partial class RegisterAccountValidator
         }
 
         var name = Required(data.Name, "organization.name", "El nombre de la organización", OrganizationNameMaxLength, add);
-        var phone = Required(data.ContactPhone, "organization.contactPhone", "El teléfono de contacto", ContactPhoneMaxLength, add);
-        if (phone is not null && !PhonePattern().IsMatch(phone))
-        {
-            add("organization.contactPhone", "El teléfono solo admite dígitos, espacios, +, -, ( y ), con al menos 7 caracteres.");
-            phone = null;
-        }
+        var phone = ValidPhone(Required(data.ContactPhone, "organization.contactPhone", "El teléfono de contacto", ContactPhoneMaxLength, add),
+            "organization.contactPhone", add);
         var address = Required(data.Address, "organization.address", "La dirección", AddressMaxLength, add);
 
         var information = string.IsNullOrWhiteSpace(data.VerificationInformation) ? null : data.VerificationInformation.Trim();

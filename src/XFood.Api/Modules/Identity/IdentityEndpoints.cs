@@ -10,7 +10,8 @@ public sealed record AccountResponse(
     string DisplayName,
     string Role,
     string Status,
-    OrganizationResponse? Organization)
+    OrganizationResponse? Organization,
+    IReadOnlyList<EstablishmentResponse>? Establishments)
 {
     public static AccountResponse From(AccountSummary account) => new(
         account.UserId,
@@ -20,31 +21,41 @@ public sealed record AccountResponse(
         account.Status.ToString(),
         account.Organization is { } organization
             ? new OrganizationResponse(organization.Id, organization.Name, organization.VerificationStatus.ToString())
-            : null);
+            : null,
+        account.Establishments?
+            .Select(e => new EstablishmentResponse(e.Id, e.Name, e.Status.ToString(), e.MemberRole.ToString(), e.IsPrimary))
+            .ToList());
 }
 
 public sealed record OrganizationResponse(Guid Id, string Name, string VerificationStatus);
+
+public sealed record EstablishmentResponse(Guid Id, string Name, string Status, string MemberRole, bool IsPrimary);
 
 public static class IdentityEndpoints
 {
     public static IEndpointRouteBuilder MapIdentityEndpoints(this IEndpointRouteBuilder api)
     {
-        var auth = api.MapGroup("/auth").WithTags("Identity").AllowAnonymous();
+        var auth = api.MapGroup("/auth").WithTags("Identity");
 
         auth.MapPost("/register", RegisterAsync)
+            .AllowAnonymous()
             .WithName("RegisterAccount")
             .Produces<AccountResponse>(StatusCodes.Status201Created)
             .Produces<ApiError>(StatusCodes.Status400BadRequest);
 
         auth.MapPost("/login", LoginAsync)
+            .AllowAnonymous()
             .WithName("Login")
             .Produces<AccountResponse>()
             .Produces<ApiError>(StatusCodes.Status401Unauthorized)
             .Produces<ApiError>(StatusCodes.Status403Forbidden);
 
         auth.MapPost("/logout", LogoutAsync)
+            .RequireAuthorization()
             .WithName("Logout")
-            .Produces(StatusCodes.Status204NoContent);
+            .Produces(StatusCodes.Status204NoContent)
+            .Produces<ApiError>(StatusCodes.Status401Unauthorized)
+            .Produces<ApiError>(StatusCodes.Status403Forbidden);
 
         api.MapGet("/me", GetCurrentAccountAsync)
             .WithName("GetCurrentAccount")
