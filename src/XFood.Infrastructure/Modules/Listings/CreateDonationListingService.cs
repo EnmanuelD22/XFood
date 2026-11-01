@@ -52,7 +52,7 @@ public sealed class CreateDonationListingService(
             OriginalUnitPrice = null,
             DiscountedUnitPrice = null,
             Currency = "DOP",
-            FoodSafetyDeclared = request.FoodSafetyDeclared,
+            FoodSafetyDeclared = request.FoodSafetyDeclared!.Value,
             IsFoodFit = true,
             PickupStartsAtUtc = request.PickupStartsAtUtc,
             PickupDeadlineUtc = request.PickupDeadlineUtc,

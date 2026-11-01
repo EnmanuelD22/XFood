@@ -4,6 +4,9 @@ using XFood.Application.Common;
 using XFood.Application.Modules.Listings;
 using XFood.Application.Modules.Listings.Contracts;
 using XFood.Application.Modules.Listings.Services;
+using XFood.Application.Modules.Donations;
+using XFood.Domain.Modules.Donations;
+using XFood.Domain.Modules.Listings;
 using XFood.Api.Modules.Identity;
 
 namespace XFood.Api.Modules.Listings;
@@ -17,6 +20,13 @@ public static class ListingEndpoints
             .WithTags("Listings")
             .Produces<IReadOnlyList<ListingResponse>>()
             .Produces<ApiError>(StatusCodes.Status400BadRequest);
+
+        api.MapGet("/listings/donations", GetDonationsAsync)
+            .RequireAuthorization(AuthorizationPolicies.Organization)
+            .WithName("GetActiveDonationListings")
+            .WithTags("Listings")
+            .Produces<IReadOnlyList<ListingResponse>>()
+            .Produces<ApiError>(StatusCodes.Status403Forbidden);
 
         api.MapPost("/listings/donations", CreateDonationAsync)
             .RequireAuthorization(AuthorizationPolicies.Establishment)
@@ -221,10 +231,45 @@ public static class ListingEndpoints
             }).ToResult(http);
         }
 
-        var evaluationTime = asOfUtc ?? timeProvider.GetUtcNow();
-        var result = await listings.GetActiveAsync(evaluationTime, cancellationToken);
+        var evaluationTime = asOfUtc.HasValue
+            ? MaxUtc(asOfUtc.Value, timeProvider.GetUtcNow())
+            : timeProvider.GetUtcNow();
+        var result = await listings.GetActiveAsync(ListingMode.Sale, evaluationTime, cancellationToken);
         return Results.Ok(result);
     }
+
+    private static async Task<IResult> GetDonationsAsync(
+        DateTimeOffset? asOfUtc,
+        TimeProvider timeProvider,
+        IOrganizationOnboarding organizations,
+        ClaimsPrincipal user,
+        IActiveListingsQueryService listings,
+        HttpContext http,
+        CancellationToken cancellationToken)
+    {
+        if (asOfUtc.HasValue && asOfUtc.Value.Offset != TimeSpan.Zero)
+            return AppError.Validation(new Dictionary<string, string[]>
+            {
+                ["asOfUtc"] = ["La fecha de evaluación debe expresarse en UTC."],
+            }).ToResult(http);
+
+        if (!Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+            || await organizations.FindActiveMembershipAsync(userId, cancellationToken) is not { VerificationStatus: VerificationStatus.Approved })
+        {
+            return Results.Json(new ApiError(
+                ErrorCodes.Forbidden,
+                "La organización debe estar verificada.",
+                http.TraceIdentifier), statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        var nowUtc = timeProvider.GetUtcNow();
+        var evaluationTime = asOfUtc.HasValue ? MaxUtc(asOfUtc.Value, nowUtc) : nowUtc;
+        var result = await listings.GetActiveAsync(ListingMode.Donation, evaluationTime, cancellationToken);
+        return Results.Ok(result);
+    }
+
+    private static DateTimeOffset MaxUtc(DateTimeOffset requested, DateTimeOffset now) =>
+        requested >= now ? requested : now;
 
     private static Task<IResult> UpdateAsync(
         Guid listingId,

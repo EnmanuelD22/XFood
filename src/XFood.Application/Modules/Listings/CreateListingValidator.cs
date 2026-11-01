@@ -40,7 +40,7 @@ public static class CreateListingValidator
         else if (request.DiscountedUnitPrice >= request.OriginalUnitPrice)
             Add(nameof(request.DiscountedUnitPrice), "El precio descontado debe ser menor que el precio original.");
 
-        if (!request.FoodSafetyDeclared)
+        if (request.FoodSafetyDeclared != true)
             Add(nameof(request.FoodSafetyDeclared), "La declaración de seguridad alimentaria es obligatoria.");
 
         if (request.PickupStartsAtUtc.Offset != TimeSpan.Zero)

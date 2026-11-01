@@ -75,7 +75,8 @@ public sealed class ListingApiTests : IClassFixture<ListingApiTests.Factory>
         var listing = Assert.Single(listings!);
         Assert.Equal(expected.Id, listing.Id);
         Assert.Equal(expected.Title, listing.Title);
-        Assert.Equal(asOfUtc, factory.Query.LastAsOfUtc);
+        Assert.True(factory.Query.LastAsOfUtc >= asOfUtc);
+        Assert.Equal(ListingMode.Sale, factory.Query.LastMode);
     }
 
     [Fact]
@@ -173,18 +174,22 @@ internal sealed class FakeActiveListingsQueryService : IActiveListingsQueryServi
     private IReadOnlyList<ListingResponse> listings = [];
 
     public DateTimeOffset? LastAsOfUtc { get; private set; }
+    public ListingMode? LastMode { get; private set; }
 
     public void SetListings(IReadOnlyList<ListingResponse> values)
     {
         listings = values;
         LastAsOfUtc = null;
+        LastMode = null;
     }
 
     public Task<IReadOnlyList<ListingResponse>> GetActiveAsync(
+        ListingMode mode,
         DateTimeOffset asOfUtc,
         CancellationToken cancellationToken = default)
     {
         LastAsOfUtc = asOfUtc;
+        LastMode = mode;
         return Task.FromResult(listings);
     }
 }

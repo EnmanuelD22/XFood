@@ -32,11 +32,13 @@ public sealed class ManageListingStockService(
 
         if (request.Kind == StockAdjustmentKind.Increase)
         {
-            if (listing.Status != ListingStatus.Active || listing.PickupDeadlineUtc <= nowUtc)
+            if (listing.Status is not (ListingStatus.Active or ListingStatus.Exhausted) || listing.PickupDeadlineUtc <= nowUtc)
                 throw new ListingInvalidOperationException("Solo se puede aumentar una publicación activa y vigente.");
 
             listing.AddedQuantity = checked(listing.AddedQuantity + request.Quantity);
             listing.AvailableQuantity = checked(listing.AvailableQuantity + request.Quantity);
+            if (listing.AvailableQuantity > 0 && listing.Status == ListingStatus.Exhausted)
+                AddStatusChange(listing, ListingStatus.Active, actorUserId, nowUtc, "Reactivación por ajuste de inventario.");
         }
         else
         {
@@ -45,6 +47,8 @@ public sealed class ManageListingStockService(
 
             listing.AvailableQuantity -= request.Quantity;
             listing.WrittenOffQuantity = checked(listing.WrittenOffQuantity + request.Quantity);
+            if (listing.AvailableQuantity == 0 && listing.Status == ListingStatus.Active)
+                AddStatusChange(listing, ListingStatus.Exhausted, actorUserId, nowUtc, request.Reason);
         }
 
         db.Add(new StockAdjustment
@@ -102,6 +106,8 @@ public sealed class ManageListingStockService(
         source.TransferredOutQuantity = checked(source.TransferredOutQuantity + request.Quantity);
         destination.AvailableQuantity = checked(destination.AvailableQuantity + request.Quantity);
         destination.TransferredInQuantity = checked(destination.TransferredInQuantity + request.Quantity);
+        if (source.AvailableQuantity == 0)
+            AddStatusChange(source, ListingStatus.Exhausted, actorUserId, nowUtc, request.Reason);
 
         db.Add(new StockTransfer
         {
@@ -119,6 +125,22 @@ public sealed class ManageListingStockService(
 
         await SaveWithTransactionAsync(cancellationToken);
         return (ToResponse(source), ToResponse(destination));
+    }
+
+    private void AddStatusChange(Listing listing, ListingStatus toStatus, Guid actorUserId, DateTimeOffset occurredAtUtc, string reason)
+    {
+        var fromStatus = listing.Status;
+        listing.Status = toStatus;
+        db.Add(new ListingStatusChange
+        {
+            Id = Guid.CreateVersion7(),
+            ListingId = listing.Id,
+            FromStatus = fromStatus,
+            ToStatus = toStatus,
+            ActorUserId = actorUserId,
+            Reason = reason.Trim(),
+            OccurredAtUtc = occurredAtUtc,
+        });
     }
 
     private async Task<Listing> LoadAuthorizedListingAsync(Guid listingId, Guid actorUserId, CancellationToken cancellationToken)

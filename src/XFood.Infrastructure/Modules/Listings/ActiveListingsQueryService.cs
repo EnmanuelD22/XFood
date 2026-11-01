@@ -9,12 +9,14 @@ namespace XFood.Infrastructure.Modules.Listings;
 public sealed class ActiveListingsQueryService(XFoodDbContext db) : IActiveListingsQueryService
 {
     public async Task<IReadOnlyList<ListingResponse>> GetActiveAsync(
+        ListingMode mode,
         DateTimeOffset asOfUtc,
         CancellationToken cancellationToken = default)
     {
         return await db.Set<Listing>()
             .AsNoTracking()
             .Where(listing => listing.Status == ListingStatus.Active
+                && listing.Mode == mode
                 && listing.AvailableQuantity > 0
                 && listing.IsFoodFit
                 && listing.PickupDeadlineUtc > asOfUtc)

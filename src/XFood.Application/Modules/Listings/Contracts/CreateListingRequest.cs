@@ -15,5 +15,5 @@ public sealed class CreateListingRequest
     public decimal OriginalUnitPrice { get; set; }
     public decimal DiscountedUnitPrice { get; set; }
     public string PaymentInstructions { get; set; } = string.Empty;
-    public bool FoodSafetyDeclared { get; set; } = true;
+    public bool? FoodSafetyDeclared { get; set; }
 }

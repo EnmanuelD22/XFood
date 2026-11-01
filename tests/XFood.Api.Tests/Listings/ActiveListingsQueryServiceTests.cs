@@ -22,11 +22,26 @@ public sealed class ActiveListingsQueryServiceTests
         await db.SaveChangesAsync();
 
         var service = new ActiveListingsQueryService(db);
-        var result = await service.GetActiveAsync(asOfUtc);
+        var result = await service.GetActiveAsync(ListingMode.Sale, asOfUtc);
 
         var listing = Assert.Single(result);
         Assert.Equal("future", listing.Title);
         Assert.Equal(ListingStatus.Active, listing.Status);
+    }
+
+    [Fact]
+    public async Task GetActiveAsync_excludes_unfit_listings()
+    {
+        var asOfUtc = new DateTimeOffset(2026, 11, 1, 10, 0, 0, TimeSpan.Zero);
+        await using var db = CreateDbContext();
+        db.AddRange(
+            CreateListing(ListingStatus.Active, asOfUtc.AddHours(1), "fit"),
+            CreateListing(ListingStatus.Active, asOfUtc.AddHours(2), "unfit", isFoodFit: false));
+        await db.SaveChangesAsync();
+
+        var result = await new ActiveListingsQueryService(db).GetActiveAsync(ListingMode.Sale, asOfUtc);
+
+        Assert.Equal("fit", Assert.Single(result).Title);
     }
 
     [Fact]
@@ -40,7 +55,7 @@ public sealed class ActiveListingsQueryServiceTests
         await db.SaveChangesAsync();
 
         var service = new ActiveListingsQueryService(db);
-        var result = await service.GetActiveAsync(asOfUtc);
+        var result = await service.GetActiveAsync(ListingMode.Sale, asOfUtc);
 
         Assert.Equal(["earlier", "later"], result.Select(listing => listing.Title));
     }
@@ -58,7 +73,8 @@ public sealed class ActiveListingsQueryServiceTests
         DateTimeOffset deadline,
         string title,
         int available = 1,
-        bool isFoodFit = true) => new()
+        bool isFoodFit = true,
+        ListingMode mode = ListingMode.Sale) => new()
     {
         Id = Guid.NewGuid(),
         EstablishmentId = Guid.NewGuid(),
@@ -66,7 +82,7 @@ public sealed class ActiveListingsQueryServiceTests
         CategoryId = Guid.NewGuid(),
         Title = title,
         Description = "Descripción",
-        Mode = ListingMode.Sale,
+        Mode = mode,
         Status = status,
         InitialQuantity = available,
         AvailableQuantity = status == ListingStatus.Exhausted ? 0 : available,
@@ -74,7 +90,7 @@ public sealed class ActiveListingsQueryServiceTests
         DiscountedUnitPrice = 50m,
         Currency = "DOP",
         PickupInstructions = "Recoger aquí",
-        PaymentInstructions = "Pagar aquí",
+        PaymentInstructions = mode == ListingMode.Sale ? "Pagar aquí" : null,
         FoodSafetyDeclared = true,
         IsFoodFit = isFoodFit,
         PickupStartsAtUtc = deadline.AddHours(-1),

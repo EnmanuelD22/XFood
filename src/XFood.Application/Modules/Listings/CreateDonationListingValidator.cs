@@ -29,7 +29,7 @@ public static class CreateDonationListingValidator
 
         if (request.InitialQuantity <= 0)
             Add(nameof(request.InitialQuantity), "La cantidad inicial debe ser mayor que cero.");
-        if (!request.FoodSafetyDeclared)
+        if (request.FoodSafetyDeclared != true)
             Add(nameof(request.FoodSafetyDeclared), "La declaración de seguridad alimentaria es obligatoria.");
 
         if (request.PickupStartsAtUtc.Offset != TimeSpan.Zero)

@@ -17,6 +17,17 @@ public sealed class CreateListingValidatorTests
     }
 
     [Fact]
+    public void Validate_rejects_omitted_food_safety_declaration()
+    {
+        var request = ValidRequest();
+        request.FoodSafetyDeclared = null;
+
+        var errors = CreateListingValidator.Validate(request, DateTimeOffset.UtcNow);
+
+        Assert.Contains(nameof(request.FoodSafetyDeclared), errors.Keys);
+    }
+
+    [Fact]
     public void Validate_rejects_invalid_sale_values()
     {
         var request = ValidRequest();

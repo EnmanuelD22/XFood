@@ -28,6 +28,7 @@ public sealed class ListingExpiryAlertService(
             .AsNoTracking()
             .Where(listing => listing.Status == ListingStatus.Active
                 && listing.AvailableQuantity > 0
+                && listing.IsFoodFit
                 && listing.PickupDeadlineUtc > asOfUtc
                 && listing.PickupDeadlineUtc <= thresholdEndUtc)
             .Select(listing => new

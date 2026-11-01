@@ -74,7 +74,7 @@ public sealed class ListingExpiryAlertServiceTests
     private static XFoodDbContext CreateDbContext() => new(new DbContextOptionsBuilder<XFoodDbContext>()
         .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
 
-    private static Listing CreateListing(ListingStatus status, int minutes, int available, string title)
+    private static Listing CreateListing(ListingStatus status, int minutes, int available, string title, bool isFoodFit = true)
     {
         var deadline = AsOfUtc.AddMinutes(minutes);
         return new Listing
@@ -84,7 +84,7 @@ public sealed class ListingExpiryAlertServiceTests
             Status = status, InitialQuantity = available, AvailableQuantity = available,
             OriginalUnitPrice = 100, DiscountedUnitPrice = 50, Currency = "DOP", PickupInstructions = "Recoger",
             PaymentInstructions = "Pago", FoodSafetyDeclared = true, PickupStartsAtUtc = deadline.AddHours(-1),
-            PickupDeadlineUtc = deadline, CreatedAtUtc = deadline.AddHours(-2),
+             IsFoodFit = isFoodFit, PickupDeadlineUtc = deadline, CreatedAtUtc = deadline.AddHours(-2),
         };
     }
 }

@@ -54,7 +54,7 @@ public sealed class CreateListingService(
                 Currency = "DOP",
                 PickupInstructions = request.PickupInstructions.Trim(),
                 PaymentInstructions = request.PaymentInstructions.Trim(),
-                FoodSafetyDeclared = request.FoodSafetyDeclared,
+                FoodSafetyDeclared = request.FoodSafetyDeclared!.Value,
                 IsFoodFit = true,
                 PickupStartsAtUtc = request.PickupStartsAtUtc,
                 PickupDeadlineUtc = request.PickupDeadlineUtc,

@@ -10,5 +10,5 @@ public sealed class CreateDonationListingRequest
     public string PickupInstructions { get; set; } = string.Empty;
     public DateTimeOffset PickupStartsAtUtc { get; set; }
     public DateTimeOffset PickupDeadlineUtc { get; set; }
-    public bool FoodSafetyDeclared { get; set; } = true;
+    public bool? FoodSafetyDeclared { get; set; }
 }
