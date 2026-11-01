@@ -2,7 +2,7 @@
 
 Backend para conectar establecimientos con excedentes alimentarios, consumidores y organizaciones beneficiarias. Es un **monolito modular**: una API desplegable y una base SQL Server, con separación de Dominio, Aplicación, Infraestructura y presentación HTTP.
 
-Actualmente incluye el modelo de datos, migraciones, registro e inicio de sesión por rol (HU-04, sesión por cookie para el panel web), perfil de establecimientos y publicaciones (HU-01), búsqueda pública de ofertas cercanas con detalle (HU-02, backend) y pruebas. Los demás casos de uso, la autenticación de la app móvil y los trabajadores de notificaciones aún deben implementarse. Flutter y React/Next.js son clientes previstos.
+Actualmente incluye el modelo de datos y sus migraciones, registro e inicio de sesión por rol (HU-04), gestión de establecimientos y publicaciones (HU-01), catálogo inicial de categorías, búsqueda pública de ofertas cercanas con detalle (HU-02, backend) y pruebas. La sesión del panel usa una cookie; la autenticación móvil y los trabajadores de notificaciones siguen pendientes. Flutter y React/Next.js son clientes previstos.
 
 ## Tecnologías y requisitos
 
@@ -22,6 +22,7 @@ Actualmente incluye el modelo de datos, migraciones, registro e inicio de sesió
 | `src/XFood.Infrastructure` | Mapeos EF, Identity, SQL Server y configuración |
 | `src/XFood.Api` | Única aplicación ejecutable y composición HTTP |
 | `tests/XFood.Architecture.Tests` | Pruebas de modelo, migraciones y dependencias |
+| `tests/XFood.Api.Tests` | Pruebas HTTP, de aplicación e integración SQL Server |
 | `docs/modelo-datos.md` | Diseño de datos y decisiones |
 | `docs/HU-01-Cierre.md`, `docs/HU-02-Cierre.md` | Alcance, contrato y decisiones de producto de cada historia |
 | `docs/sql/AddV1DataModel.sql` | SQL idempotente de avance desde Identity a negocio |
@@ -58,14 +59,14 @@ dotnet user-secrets set "ConnectionStrings:XFood" "Server=.\SQLEXPRESS;Database=
 
 ## Crear o actualizar la base local
 
-Las migraciones existentes son `20261030065020_InitialIdentity`, `20261030234244_AddV1DataModel` y `20261101171937_AuditHu01Edits`. El comando siguiente crea la base configurada si no existe y aplica solo las migraciones pendientes. Verifique servidor y base antes de ejecutarlo; una base compartida requiere coordinación y revisión del SQL. Si existen correos normalizados duplicados, el nuevo índice único de Identity impedirá actualizar hasta resolverlos.
+Las migraciones existentes son `20261030065020_InitialIdentity`, `20261030234244_AddV1DataModel`, `20261101171937_AuditHu01Edits` y `20261101212804_SeedInitialCategories`. El comando siguiente crea la base configurada si no existe y aplica todas las migraciones pendientes. Verifique servidor y base antes de ejecutarlo; una base compartida requiere coordinación y revisión del SQL. Si existen correos normalizados duplicados, el índice único de Identity impedirá actualizar hasta resolverlos.
 
 ```powershell
 $env:ASPNETCORE_ENVIRONMENT='Development'
-dotnet tool run dotnet-ef database update 20261101171937_AuditHu01Edits --project src/XFood.Infrastructure --startup-project src/XFood.Api --context XFoodDbContext
+dotnet tool run dotnet-ef database update --project src/XFood.Infrastructure --startup-project src/XFood.Api --context XFoodDbContext
 ```
 
-No use `EnsureCreated` con esta estrategia. No elimine el historial ni edite migraciones ya aplicadas. El catálogo queda vacío: sus valores iniciales requieren aprobación. No hay usuarios, roles de negocio ni credenciales precargados.
+No use `EnsureCreated` con esta estrategia. No elimine el historial ni edite migraciones ya aplicadas. `SeedInitialCategories` incorpora seis categorías iniciales para venta y donación; no hay usuarios ni credenciales precargados.
 
 ## Ejecutar la API
 
@@ -105,7 +106,7 @@ La protección CSRF de la API usa `Cors:PanelOrigins` y `Security:ApiOrigins` (v
 ./tests/Validate-IsolatedSqlServer.ps1
 ```
 
-Ese script usa el servidor de User Secrets, crea una base nueva `XFood_Validation_*`, aplica ambas migraciones y prueba restricciones. Requiere permisos de creación de bases. Conserva la base para inspección y revierte los datos temporales; nunca selecciona `XFoodDB` como destino de escritura.
+Ese script usa el servidor de User Secrets, crea una base nueva `XFood_Validation_*`, aplica hasta `AddV1DataModel` y prueba las restricciones de esa etapa. Requiere permisos de creación de bases. Conserva la base para inspección y revierte los datos temporales; nunca selecciona `XFoodDB` como destino de escritura.
 
 ## Trabajo del equipo y nuevas migraciones
 
@@ -120,4 +121,4 @@ dotnet tool run dotnet-ef migrations has-pending-model-changes --project src/XFo
 
 Revise el SQL, pruebe en una base aislada y versione migración, diseñador y snapshot junto con las entidades y mapeos. Las transacciones de stock, autorización, idempotencia, existencia del principal y procesamiento del outbox deben implementarse y probarse en sus casos de uso. El índice de principal solo garantiza como máximo uno activo; padre y primer principal deben confirmarse en una sola transacción.
 
-`documentacion/`, `AGENTS.md`, `.agents/` y `.codex/` están ignorados por Git y **no llegan en una copia clonada**. Comparta esas referencias por el canal acordado del equipo; la guía versionada está en `docs/`. Los artefactos `bin/`, `obj/`, secretos y bases locales no deben incluirse en commits. Siguen pendientes catálogo inicial, evidencia de verificación, resolución de incidencias parciales/tardías, proveedor push y retención.
+`documentacion/`, `AGENTS.md`, `.agents/` y `.codex/` están ignorados por Git y **no llegan en una copia clonada**. Comparta esas referencias por el canal acordado del equipo; la guía versionada está en `docs/`. Los artefactos `bin/`, `obj/`, secretos y bases locales no deben incluirse en commits. Siguen pendientes la evidencia de verificación, resolución de incidencias parciales/tardías, proveedor push y retención.
