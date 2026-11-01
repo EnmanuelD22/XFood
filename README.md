@@ -82,6 +82,12 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 - No hay Swagger UI configurada. Las rutas de negocio usan `/api/v1`; las de cuentas y sesión están descritas en `src/XFood.Application/Modules/Identity/README.md`.
 - Búsqueda pública (HU-02): `GET /api/v1/listings?latitude=&longitude=&radiusKm=&page=1&pageSize=20`, `GET /api/v1/listings/{id}` y `GET /api/v1/listings/search-options`. La lista conserva el arreglo JSON; `X-Page`, `X-Page-Size` y `X-Has-Next-Page` permiten recorrerla. Radios y tamaños de página se configuran en `Listings:Search` de `appsettings.json`; contrato y decisiones en `docs/HU-02-Cierre.md`.
 
+## Panel web HU-01
+
+La aplicación Next.js del panel de establecimiento está en [`web/`](web/README.md). Para iniciarla, entra en esa carpeta, copia `.env.example` a `.env.local` y ejecuta `npm install` y `npm run dev`. El proxy del panel conserva la cookie HttpOnly al comunicarse con la API.
+
+La API incluye `GET /api/v1/establishments/{establishmentId}/listings` para publicaciones propias y `GET /api/v1/categories` para categorías activas. Aplica las migraciones pendientes a la base local para incluir el catálogo inicial. La guía de configuración está en `web/README.md`.
+
 ## Pruebas
 
 ```powershell
