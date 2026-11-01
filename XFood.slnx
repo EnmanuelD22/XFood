@@ -1,4 +1,11 @@
 <Solution>
+  <Folder Name="/docs/">
+    <File Path="docs/modelo-datos.md" />
+    <File Path="docs/XFood_Arquitectura.md" />
+    <File Path="docs/XFood_Especificaciones.md" />
+    <File Path="docs/XFood_Informe_Desarrollo_y_Ramas.pdf" />
+    <File Path="docs/XFood_SRS.md" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/XFood.Api/XFood.Api.csproj" />
     <Project Path="src/XFood.Application/XFood.Application.csproj" />

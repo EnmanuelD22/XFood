@@ -1,5 +1,7 @@
 using XFood.Api.Http;
 using XFood.Api.Modules.Identity;
+using XFood.Api.Modules.Establishments;
+using XFood.Api.Modules.Listings;
 using XFood.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +31,8 @@ app.MapGet("/health/live", () => Results.Ok(new { status = "live" }))
 
 var api = app.MapGroup("/api/v1");
 api.MapIdentityEndpoints();
+api.MapListingEndpoints();
+api.MapEstablishmentProfileEndpoints();
 
 app.Run();
 
