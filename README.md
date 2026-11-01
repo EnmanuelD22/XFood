@@ -2,7 +2,7 @@
 
 Backend para conectar establecimientos con excedentes alimentarios, consumidores y organizaciones beneficiarias. Es un **monolito modular**: una API desplegable y una base SQL Server, con separación de Dominio, Aplicación, Infraestructura y presentación HTTP.
 
-Actualmente incluye el modelo de datos, migraciones, configuración técnica de Identity y pruebas. Los casos de uso, endpoints de negocio, autenticación de clientes y trabajadores de notificaciones aún deben implementarse. Flutter y React/Next.js son clientes previstos.
+Actualmente incluye el modelo de datos, migraciones, registro e inicio de sesión por rol (HU-04, sesión por cookie para el panel web) y pruebas. Los demás casos de uso, la autenticación de la app móvil y los trabajadores de notificaciones aún deben implementarse. Flutter y React/Next.js son clientes previstos.
 
 ## Tecnologías y requisitos
 
@@ -77,7 +77,7 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 
 - Vida del proceso: `https://localhost:7293/health/live` (no comprueba disponibilidad de SQL Server).
 - Documento OpenAPI JSON en Development: `https://localhost:7293/openapi/v1.json`.
-- No hay Swagger UI configurada ni endpoints de negocio. Las futuras rutas de negocio usarán `/api/v1`.
+- No hay Swagger UI configurada. Las rutas de negocio usan `/api/v1`; las de cuentas y sesión están descritas en `src/XFood.Application/Modules/Identity/README.md`.
 
 ## Pruebas
 
@@ -85,7 +85,19 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 dotnet test XFood.slnx --no-build
 ```
 
-Las 24 pruebas actuales inspeccionan el modelo y las migraciones sin conectarse a una base. Existe además una validación real opcional de SQL Server:
+`XFood.Architecture.Tests` inspecciona el modelo y las migraciones sin conectarse a una base. `XFood.Api.Tests` prueba los casos de uso y el contrato HTTP de Identity con dobles y, en `Integration/`, el recorrido real contra SQL Server: transacción de registro y su reversión, bloqueo tras cinco intentos, cookie, login → `/me` → logout y protección CSRF.
+
+Las pruebas de integración usan **su propia configuración**, nunca los User Secrets de la API: la variable `XFOOD_TEST_SQLSERVER` con una cadena de conexión al servidor (se ignora el nombre de base). Cada ejecución crea `XFood_Tests_<guid>`, aplica las migraciones y la borra al terminar. Antes de migrar o borrar, el código comprueba que el nombre tenga ese formato y nunca sea `XFoodDB`. Sin la variable, esas pruebas aparecen como omitidas.
+
+**Antes de integrar en `develop` deben ejecutarse con SQL Server** (el repositorio no tiene CI). Con `XFOOD_REQUIRE_SQL_TESTS=true`, una configuración ausente hace fallar las pruebas en lugar de omitirlas:
+
+```powershell
+$env:XFOOD_TEST_SQLSERVER='Server=.\SQLEXPRESS;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
+$env:XFOOD_REQUIRE_SQL_TESTS='true'
+dotnet test XFood.slnx
+```
+
+La protección CSRF de la API usa `Cors:PanelOrigins` y `Security:ApiOrigins` (vacíos por defecto, `localhost` en Development); configúrelos con las URL públicas en cada entorno. Existe además una validación real opcional de SQL Server:
 
 ```powershell
 ./tests/Validate-IsolatedSqlServer.ps1

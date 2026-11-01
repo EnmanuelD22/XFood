@@ -6,6 +6,7 @@
     <Project Path="src/XFood.Infrastructure/XFood.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/XFood.Api.Tests/XFood.Api.Tests.csproj" />
     <Project Path="tests/XFood.Architecture.Tests/XFood.Architecture.Tests.csproj" />
   </Folder>
 </Solution>
