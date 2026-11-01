@@ -33,6 +33,7 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   const response = await fetch(apiUrl(path), {
     ...init,
     credentials: "same-origin",
+    cache: "no-store",
     headers: { "Content-Type": "application/json", ...init?.headers },
   });
   const payload = await readPayload(response) as ApiError | undefined;

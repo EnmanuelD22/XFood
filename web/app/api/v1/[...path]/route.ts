@@ -18,6 +18,7 @@ async function forward(request: NextRequest, context: { params: Promise<{ path: 
       const value = upstream.headers.get(name);
       if (value) responseHeaders.set(name, value);
     }
+    responseHeaders.set("cache-control", "private, no-store");
     const cookies = upstream.headers.getSetCookie?.() ?? [];
     for (const cookie of cookies) responseHeaders.append("set-cookie", cookie);
     return new NextResponse(upstream.body, { status: upstream.status, headers: responseHeaders });

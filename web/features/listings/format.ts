@@ -1,7 +1,7 @@
 import type { FieldErrors, FormValues, Listing } from "./types";
 
 export function getListingStatus(status: number, deadline: string) {
-  if (status === 1 && new Date(deadline) < new Date()) return "Vencida";
+  if ((status === 1 || status === 2) && new Date(deadline) <= new Date()) return "Vencida";
 
   const labels: Record<number, string> = {
     1: "Activa",
@@ -19,7 +19,8 @@ export function formatMoney(value?: number | null) {
   return new Intl.NumberFormat("es-DO", {
     style: "currency",
     currency: "DOP",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -37,6 +38,7 @@ export function localInputToUtc(value: string, timeZone: string) {
 
   const [year, month, day] = datePart.split("-").map(Number);
   const [hour, minute] = timePart.split(":").map(Number);
+  if (![year, month, day, hour, minute].every(Number.isFinite)) return "";
   const targetTime = Date.UTC(year, month - 1, day, hour, minute);
   let utcGuess = targetTime;
 
