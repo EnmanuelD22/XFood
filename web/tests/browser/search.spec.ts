@@ -74,7 +74,8 @@ test("changing the radius asks the server again with the selected value", async 
   const request = page.waitForRequest((req) => req.url().includes("radiusKm=5"));
   await page.getByRole("combobox", { name: "Radio de búsqueda" }).selectOption("5");
   await request;
-  expect(searches.at(-1)?.get("radiusKm")).toBe("5");
+  // The route handler records the search after the request is sent, so wait for it.
+  await expect.poll(() => searches.at(-1)?.get("radiusKm")).toBe("5");
 });
 
 test("the detail shows establishment, pickup window, prices and availability without a reserve action", async ({ page }) => {
