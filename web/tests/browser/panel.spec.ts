@@ -45,7 +45,7 @@ test("renders API cents, filters and opens an accessible editing dialog", async 
   await page.getByLabel("Título", { exact: false }).fill("Nueva canasta");
   await page.getByRole("button", { name: "Guardar cambios" }).click();
   await expect(page.getByRole("heading", { name: "Nueva canasta" })).toBeVisible();
-  await page.getByRole("textbox", { name: "Buscar publicaciones" }).fill("sin coincidencias");
+  await page.getByRole("searchbox", { name: "Buscar publicaciones" }).fill("sin coincidencias");
   await expect(page.getByRole("heading", { name: "No hay coincidencias" })).toBeVisible();
 });
 
@@ -86,7 +86,8 @@ test("keeps server validation errors associated with the field", async ({ page }
 test("deactivation requires a reason and preserves history", async ({ page }) => {
   await mockApi(page);
   await page.goto("/panel");
-  await page.getByRole("button", { name: "Desactivar", exact: true }).click();
+  await page.getByRole("button", { name: `Más acciones para ${sale.title}` }).click();
+  await page.getByRole("menuitem", { name: "Desactivar" }).click();
   await expect(page.getByRole("button", { name: "Confirmar desactivación" })).toBeDisabled();
   await page.getByLabel("Motivo de desactivación").fill("Retirada del lote");
   await page.getByRole("button", { name: "Confirmar desactivación" }).click();
@@ -155,4 +156,42 @@ test("mobile layout supports reduced motion, focus containment and Escape", asyn
   await page.screenshot({ path: "test-results/panel-mobile-dialog.png", fullPage: true, animations: "disabled" });
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
+});
+
+test("the actions menu works with the keyboard and returns focus", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/panel");
+  const trigger = page.getByRole("button", { name: `Más acciones para ${sale.title}` });
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Comprobar en búsqueda pública" })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("menuitem", { name: "Desactivar" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});
+
+test("cards show the category illustration with its caption in a reserved box", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/panel");
+  const card = page.getByRole("article").first();
+  await expect(card.getByText("Imagen ilustrativa de la categoría")).toBeVisible();
+  const image = card.locator("figure img");
+  await expect(image).toHaveAttribute("src", "/images/categories/frutas-verduras.svg");
+  await expect(image).toHaveAttribute("width", "320");
+  await expect(image).toHaveAttribute("height", "200");
+  const box = await card.locator("figure").boundingBox();
+  expect(box && Math.round((box.width / box.height) * 10)).toBe(16);
+});
+
+test("search matches the category name and the counter reflects the filter", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/panel");
+  await page.getByRole("searchbox", { name: "Buscar publicaciones" }).fill("verduras");
+  await expect(page.getByRole("heading", { name: sale.title })).toBeVisible();
+  await expect(page.getByText("Mostrando 1 de 1 publicación")).toBeVisible();
+  await page.getByLabel("Estado").selectOption("Vencida");
+  await expect(page.getByRole("heading", { name: "No hay coincidencias" })).toBeVisible();
 });

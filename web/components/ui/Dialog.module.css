@@ -12,6 +12,10 @@
   animation: rise var(--duration-base) var(--ease-out) both;
 }
 
+.dialog:focus {
+  outline: none;
+}
+
 .lg {
   width: min(760px, calc(100% - 24px));
 }

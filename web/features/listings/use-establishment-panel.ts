@@ -61,13 +61,14 @@ export function useEstablishmentPanel(account: Account) {
   const canManage = Boolean(selectedEstablishment) && !loading;
   const visibleListings = useMemo(
     () => listings.filter((item) => {
-      const matchesText = `${item.title} ${item.description}`
+      const category = categories.find((entry) => entry.id === item.categoryId)?.name ?? "";
+      const matchesText = `${item.title} ${item.description} ${category}`
         .toLocaleLowerCase()
-        .includes(query.toLocaleLowerCase());
+        .includes(query.trim().toLocaleLowerCase());
       const status = getListingStatus(item.status, item.pickupDeadlineUtc);
       return matchesText && (filter === "all" || status === filter);
     }),
-    [filter, listings, query],
+    [categories, filter, listings, query],
   );
 
   const loadListings = useCallback(async (id: string, signal = contextRequest.current?.signal) => {
