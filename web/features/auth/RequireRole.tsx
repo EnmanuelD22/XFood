@@ -6,7 +6,7 @@ import { PageStatus } from "@/components/layout/PageStatus";
 import { Button } from "@/components/ui/Button";
 import { Notice } from "@/components/ui/Notice";
 import { AccessDenied } from "./AccessDenied";
-import { loginPathFor } from "./routing";
+import { loginPathFor, SIGNED_OUT_PATH } from "./routing";
 import { useSession } from "./SessionProvider";
 import type { Account } from "./types";
 
@@ -21,11 +21,13 @@ export function RequireRole({ role, children }: { role: string; children: (accou
   useEffect(() => {
     if (session.status === "anonymous") {
       router.replace(loginPathFor(`${window.location.pathname}${window.location.search}`));
+    } else if (session.status === "signedOut") {
+      router.replace(SIGNED_OUT_PATH);
     }
   }, [router, session.status]);
 
   if (session.status === "loading") return <PageStatus label="Comprobando tu sesión…" />;
-  if (session.status === "anonymous") return <PageStatus label="Redirigiendo al inicio de sesión…" />;
+  if (session.status === "anonymous" || session.status === "signedOut") return <PageStatus label="Redirigiendo al inicio de sesión…" />;
   if (session.status === "error") {
     return <PageStatus label="No pudimos comprobar tu sesión.">
       <Notice tone="error">{session.message}</Notice>

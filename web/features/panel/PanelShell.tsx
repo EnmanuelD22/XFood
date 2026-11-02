@@ -8,7 +8,7 @@ import { IconButton } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Notice } from "@/components/ui/Notice";
 import { RequireRole } from "@/features/auth/RequireRole";
-import { LOGIN_PATH } from "@/features/auth/routing";
+import { SIGNED_OUT_PATH } from "@/features/auth/routing";
 import { useSession } from "@/features/auth/SessionProvider";
 import type { Account } from "@/features/auth/types";
 import styles from "./PanelShell.module.css";
@@ -37,7 +37,7 @@ function Shell({ account, children }: { account: Account; children: ReactNode })
     setError("");
     try {
       await signOut();
-      router.replace(`${LOGIN_PATH}?sesion=cerrada`);
+      router.replace(SIGNED_OUT_PATH);
     } catch (reason) {
       setError((reason as Error).message || "No se pudo cerrar la sesión.");
       setSigningOut(false);

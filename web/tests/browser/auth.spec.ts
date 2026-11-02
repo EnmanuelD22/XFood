@@ -12,11 +12,13 @@ type AuthMock = {
   loginBody?: object;
   /** Simulates a browser that rejects the cookie, so /me keeps answering 401 after a successful login. */
   cookieStored?: boolean;
+  startSignedIn?: boolean;
+  logoutStatus?: number;
 };
 
-async function mockAuth(page: Page, { account = establishmentAccount, loginStatus = 200, loginBody, cookieStored = true }: AuthMock = {}) {
+async function mockAuth(page: Page, { account = establishmentAccount, loginStatus = 200, loginBody, cookieStored = true, startSignedIn = false, logoutStatus = 204 }: AuthMock = {}) {
   const calls: string[] = [];
-  let signedIn = false;
+  let signedIn = startSignedIn;
   await page.route("https://tile.openstreetmap.org/**", (route) => route.abort());
   await page.route("**/api/v1/**", async (route) => {
     const url = new URL(route.request().url());
@@ -27,6 +29,7 @@ async function mockAuth(page: Page, { account = establishmentAccount, loginStatu
       return route.fulfill({ status: loginStatus, json: loginBody ?? account });
     }
     if (url.pathname.endsWith("/auth/logout")) {
+      if (logoutStatus !== 204) return route.fulfill({ status: logoutStatus, json: { code: "ERROR", message: "La API no respondió", traceId: "t" } });
       signedIn = false;
       return route.fulfill({ status: 204 });
     }
@@ -213,4 +216,50 @@ test("an organization registers and the login mentions the pending verification"
   expect(body.organization).toMatchObject({ name: "Banco de Alimentos" });
   expect(body.establishment).toBeUndefined();
   await expect(page.getByText(/pendiente de verificación/)).toBeVisible();
+});
+
+test("signing out from the panel ends the session and the panel asks for login again", async ({ page }) => {
+  const calls = await mockAuth(page, { startSignedIn: true });
+  await page.goto("/panel");
+  await expect(page.getByRole("heading", { name: "Mis publicaciones" })).toBeVisible();
+  await page.getByRole("button", { name: "Cerrar sesión" }).click();
+  await expect(page).toHaveURL(/\/login\?sesion=cerrada$/);
+  await expect(page.getByText("Cerraste sesión correctamente.")).toBeVisible();
+  expect(calls).toContain("POST /api/v1/auth/logout");
+  await page.goto("/panel");
+  await expect(page).toHaveURL(/\/login\?next=%2Fpanel$/);
+});
+
+test("the public header shows the session and lets a consumer sign out", async ({ page }) => {
+  await mockAuth(page, { account: consumerAccount, startSignedIn: true });
+  await page.goto("/buscar");
+  await expect(page.getByText("Sesión iniciada como Ana")).toBeAttached();
+  await expect(page.getByRole("link", { name: "Iniciar sesión" })).toHaveCount(0);
+  await page.getByRole("banner").getByRole("button", { name: "Cerrar sesión" }).click();
+  await expect(page).toHaveURL(/\/login\?sesion=cerrada$/);
+});
+
+test("a failed sign-out is reported and keeps the person in the panel", async ({ page }) => {
+  await mockAuth(page, { startSignedIn: true, logoutStatus: 500 });
+  await page.goto("/panel");
+  await page.getByRole("button", { name: "Cerrar sesión" }).click();
+  await expect(page.locator("#contenido").getByRole("alert")).toContainText("La API no respondió");
+  await expect(page).toHaveURL(/\/panel/);
+});
+
+test("an organization sees its verification status", async ({ page }) => {
+  await mockAuth(page, { startSignedIn: true, account: {
+    id: "o1", email: "rosa@ejemplo.com", displayName: "Rosa", role: "Organization", status: "Active", establishments: null,
+    organization: { id: "org", name: "Banco de Alimentos", verificationStatus: "Pending" },
+  } });
+  await page.goto("/organizacion");
+  await expect(page.getByRole("heading", { name: "Banco de Alimentos" })).toBeVisible();
+  await expect(page.getByText("Pendiente de verificación")).toBeVisible();
+});
+
+test("an establishment cannot open the organization page", async ({ page }) => {
+  await mockAuth(page, { startSignedIn: true });
+  await page.goto("/organizacion");
+  await expect(page.getByRole("heading", { name: "No tienes acceso a esta sección" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ir a mi inicio" })).toHaveAttribute("href", "/panel");
 });

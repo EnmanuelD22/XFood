@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageStatus } from "@/components/layout/PageStatus";
-import { ButtonLink } from "@/components/ui/Button";
 import { AuthLayout } from "@/features/auth/AuthLayout";
 import { LoginForm } from "@/features/auth/LoginForm";
 
@@ -11,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <AuthLayout headerActions={<ButtonLink href="/registro" variant="soft" size="sm">Crear cuenta</ButtonLink>}>
+  return <AuthLayout>
     {/* The form reads ?next= and status flags from the URL, which only exist in the browser. */}
     <Suspense fallback={<PageStatus label="Cargando…" />}><LoginForm /></Suspense>
   </AuthLayout>;

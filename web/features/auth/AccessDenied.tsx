@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { Notice } from "@/components/ui/Notice";
-import { ACCESS_DENIED_PATH, homePathFor, LOGIN_PATH } from "./routing";
+import { ACCESS_DENIED_PATH, homePathFor, LOGIN_PATH, SIGNED_OUT_PATH } from "./routing";
 import { useSession } from "./SessionProvider";
 import styles from "./AuthPages.module.css";
 
@@ -26,7 +26,7 @@ export function AccessDenied() {
   async function leave() {
     try {
       await signOut();
-      router.replace(`${LOGIN_PATH}?sesion=cerrada`);
+      router.replace(SIGNED_OUT_PATH);
     } catch (reason) {
       setError((reason as Error).message || "No se pudo cerrar la sesión.");
     }

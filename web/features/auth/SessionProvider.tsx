@@ -8,6 +8,8 @@ import type { Account } from "./types";
 export type SessionState =
   | { status: "loading" }
   | { status: "anonymous" }
+  /** The person just signed out here; guards send them to the login without a `next` page. */
+  | { status: "signedOut" }
   | { status: "authenticated"; account: Account }
   | { status: "error"; message: string };
 
@@ -65,7 +67,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!isApiError(error, 401)) throw error;
     }
     request.current?.abort();
-    setSession({ status: "anonymous" });
+    setSession({ status: "signedOut" });
   }, []);
 
   useEffect(() => {

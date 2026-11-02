@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ButtonLink } from "@/components/ui/Button";
 import { AuthLayout } from "@/features/auth/AuthLayout";
 import { RegisterForm } from "@/features/auth/RegisterForm";
 
@@ -9,7 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default function RegisterPage() {
-  return <AuthLayout wide headerActions={<ButtonLink href="/login" variant="soft" size="sm">Iniciar sesión</ButtonLink>}>
+  return <AuthLayout wide>
     <RegisterForm />
   </AuthLayout>;
 }

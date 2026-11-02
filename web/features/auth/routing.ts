@@ -2,6 +2,7 @@ import type { Account } from "./types";
 
 export const LOGIN_PATH = "/login";
 export const ACCESS_DENIED_PATH = "/acceso-denegado";
+export const SIGNED_OUT_PATH = `${LOGIN_PATH}?sesion=cerrada`;
 
 const HOME_BY_ROLE: Record<string, string> = {
   Establishment: "/panel",

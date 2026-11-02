@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { PublicHeader } from "@/components/layout/PublicHeader";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SelectField } from "@/components/ui/Field";
 import { Icon } from "@/components/ui/Icon";
@@ -29,7 +29,7 @@ export function ListingSearch() {
 
   return <>
     <a className="skip-link" href="#resultados">Ir a resultados</a>
-    <PublicHeader current="/buscar" actions={<ButtonLink href="/login" variant="soft" size="sm">Iniciar sesión</ButtonLink>} />
+    <PublicHeader current="/buscar" />
     <main className={styles.content}>
       <div className={styles.hero}>
         <p className={styles.eyebrow}>Comida a bajo costo</p>

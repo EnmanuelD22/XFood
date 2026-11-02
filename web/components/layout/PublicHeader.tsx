@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/ui/Brand";
+import { SessionActions } from "@/features/auth/SessionActions";
 import styles from "./PublicHeader.module.css";
 
 const LINKS = [
@@ -11,7 +12,7 @@ const LINKS = [
   { href: "/#impacto", label: "Impacto" },
 ];
 
-/** Top bar of public pages; `actions` holds the session controls on the right. */
+/** Top bar of public pages; by default the right side shows the session controls. */
 export function PublicHeader({ current, actions }: { current?: string; actions?: ReactNode }) {
   return <header className={styles.header}>
     <div className={styles.inner}>
@@ -23,7 +24,7 @@ export function PublicHeader({ current, actions }: { current?: string; actions?:
           </li>)}
         </ul>
       </nav>
-      <div className={styles.actions}>{actions}</div>
+      <div className={styles.actions}>{actions ?? <SessionActions />}</div>
     </div>
   </header>;
 }
