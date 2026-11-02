@@ -9,7 +9,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { Notice } from "@/components/ui/Notice";
 import { ApiRequestError, isApiError } from "@/lib/api";
 import { register } from "./api";
-import { LocationPicker } from "./LocationPicker";
+import { LocationPicker } from "@/features/location/LocationPicker";
 import {
   buildRegisterRequest,
   EMPTY_REGISTRATION,

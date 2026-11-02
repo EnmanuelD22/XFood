@@ -5,12 +5,12 @@ import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { GEOLOCATION_OPTIONS, type MapPoint } from "@/lib/map";
-import styles from "./AuthForm.module.css";
+import styles from "./LocationPicker.module.css";
 
 /** Leaflet needs `window`, so the map renders only in the browser. */
 const LocationPickerMap = dynamic(() => import("./LocationPickerMap").then((module) => module.LocationPickerMap), {
   ssr: false,
-  loading: () => <div className={styles.pickerMap} role="status">Cargando mapa…</div>,
+  loading: () => <div className={`${styles.pickerMap} ${styles.pickerLoading}`} role="status">Cargando mapa…</div>,
 });
 
 type Props = {

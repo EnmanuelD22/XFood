@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiGetWithHeaders, apiRequest, ApiRequestError } from "@/lib/api";
+import { activeEstablishments, pickEstablishment } from "@/features/panel/establishments";
 import { EMPTY_FORM } from "./constants";
 import {
   getListingStatus,
@@ -53,10 +54,7 @@ export function useEstablishmentPanel(account: Account) {
   const [checkingVisibility, setCheckingVisibility] = useState("");
   const [visibilityChecks, setVisibilityChecks] = useState<Record<string, VisibilityCheck>>({});
 
-  const establishments = useMemo(
-    () => account.establishments?.filter((item) => item.status === "Active") ?? [],
-    [account],
-  );
+  const establishments = useMemo(() => activeEstablishments(account), [account]);
   const selectedEstablishment = establishments.find((item) => item.id === establishmentId);
   const canManage = Boolean(selectedEstablishment) && !loading;
   const visibleListings = useMemo(
@@ -116,15 +114,9 @@ export function useEstablishmentPanel(account: Account) {
     setLoadError("");
 
     try {
-      const activeEstablishments = (account.establishments ?? [])
-        .filter((item) => item.status === "Active");
-      const requestedId = new URLSearchParams(window.location.search).get("establishmentId");
-      const selected = activeEstablishments.find((item) => item.id === requestedId)
-        ?? (activeEstablishments.length === 1
-          ? activeEstablishments[0]
-          : activeEstablishments.find((item) => item.isPrimary));
+      const selected = pickEstablishment(account, new URLSearchParams(window.location.search).get("establishmentId"));
 
-      if (!activeEstablishments.length) {
+      if (!activeEstablishments(account).length) {
         setEstablishmentId("");
         setListings([]);
         setLoadError("Tu cuenta no tiene un establecimiento activo habilitado para administrar publicaciones.");

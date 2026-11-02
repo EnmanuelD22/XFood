@@ -17,6 +17,8 @@ type NavItem = { href: string; label: string; icon: IconName };
 
 const NAV: NavItem[] = [
   { href: "/panel", label: "Mis publicaciones", icon: "listings" },
+  { href: "/panel/categorias", label: "Categorías", icon: "tag" },
+  { href: "/panel/configuracion", label: "Configuración", icon: "settings" },
 ];
 
 /** Establishment workspace: dark sidebar from the approved mock-up, role gate and sign-out. */

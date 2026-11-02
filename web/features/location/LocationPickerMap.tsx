@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { DEFAULT_MAP_CENTER, DEFAULT_MAP_ZOOM, MAP_ATTRIBUTION, MAP_TILE_URL, MAX_MAP_ZOOM, type MapPoint } from "@/lib/map";
-import styles from "./AuthForm.module.css";
+import styles from "./LocationPicker.module.css";
 
 const MARKER_SIZE = 26;
 const PICKED_ZOOM = 16;
