@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Brand } from "@/components/ui/Brand";
 import { SessionActions } from "@/features/auth/SessionActions";
+import { MobileNav } from "./MobileNav";
 import styles from "./PublicHeader.module.css";
 
 const LINKS = [
@@ -24,7 +25,10 @@ export function PublicHeader({ current, actions }: { current?: string; actions?:
           </li>)}
         </ul>
       </nav>
-      <div className={styles.actions}>{actions ?? <SessionActions />}</div>
+      <div className={styles.actions}>
+        {actions ?? <SessionActions />}
+        <MobileNav links={LINKS} current={current} />
+      </div>
     </div>
   </header>;
 }

@@ -28,10 +28,10 @@ const ROLES: Array<{ value: RegistrableRole; label: string; hint: string; icon: 
   { value: "Organization", label: "Organización", hint: "Recibe donaciones", icon: "heart" },
 ];
 
-export function RegisterForm() {
+export function RegisterForm({ initialRole }: { initialRole?: RegistrableRole }) {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
-  const [values, setValues] = useState<RegisterValues>(EMPTY_REGISTRATION);
+  const [values, setValues] = useState<RegisterValues>({ ...EMPTY_REGISTRATION, role: initialRole ?? EMPTY_REGISTRATION.role });
   const [errors, setErrors] = useState<RegisterErrors>({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);

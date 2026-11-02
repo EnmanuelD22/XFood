@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { PublicHeader } from "@/components/layout/PublicHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SelectField } from "@/components/ui/Field";
@@ -89,6 +90,7 @@ export function ListingSearch() {
         </section>
       </div>
     </main>
+    <SiteFooter />
     {selected && <OfferDetailDialog listing={selected} loading={detailLoading} error={detailError} unavailable={detailUnavailable} onClose={closeDetail} />}
   </>;
 }

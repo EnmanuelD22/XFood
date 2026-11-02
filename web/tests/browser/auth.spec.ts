@@ -234,7 +234,7 @@ test("the public header shows the session and lets a consumer sign out", async (
   await mockAuth(page, { account: consumerAccount, startSignedIn: true });
   await page.goto("/buscar");
   await expect(page.getByText("Sesión iniciada como Ana")).toBeAttached();
-  await expect(page.getByRole("link", { name: "Iniciar sesión" })).toHaveCount(0);
+  await expect(page.getByRole("banner").getByRole("link", { name: "Iniciar sesión" })).toHaveCount(0);
   await page.getByRole("banner").getByRole("button", { name: "Cerrar sesión" }).click();
   await expect(page).toHaveURL(/\/login\?sesion=cerrada$/);
 });
