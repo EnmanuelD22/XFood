@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <title>Lácteos y huevos</title>
+  <rect width="320" height="200" fill="#eaf2f6"/>
+  <circle cx="58" cy="40" r="54" fill="#d9e8ef"/>
+  <circle cx="286" cy="172" r="52" fill="#d9e8ef"/>
+  <ellipse cx="160" cy="172" rx="112" ry="10" fill="#285a74" opacity=".14"/>
+  <path d="M96 40h40v18l12 18v92c0 4-4 8-8 8H92c-4 0-8-4-8-8V76l12-18z" fill="#ffffff"/>
+  <rect x="94" y="32" width="44" height="12" rx="4" fill="#285a74"/>
+  <path d="M84 104h64v34H84z" fill="#c7ea67"/>
+  <path d="M100 116c6 6 18 6 24 0" stroke="#214a31" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M96 58h40" stroke="#d9e8ef" stroke-width="4"/>
+  <path d="M164 132h120a6 6 0 0 1 6 6v18c0 10-8 18-18 18H176c-10 0-18-8-18-18v-18a6 6 0 0 1 6-6z" fill="#c98a45"/>
+  <ellipse cx="190" cy="122" rx="18" ry="22" fill="#fbf4e6"/>
+  <ellipse cx="226" cy="118" rx="18" ry="24" fill="#f3e4c8"/>
+  <ellipse cx="262" cy="122" rx="18" ry="22" fill="#fbf4e6"/>
+  <path d="M164 140h126" stroke="#b9772f" stroke-width="4"/>
+  <path d="M184 112c2-6 6-10 10-10" stroke="#ffffff" stroke-width="4" stroke-linecap="round" fill="none"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <title>Carnes y pescados</title>
+  <rect width="320" height="200" fill="#f8ece8"/>
+  <circle cx="276" cy="34" r="56" fill="#f1dcd5"/>
+  <circle cx="36" cy="176" r="50" fill="#f1dcd5"/>
+  <ellipse cx="160" cy="174" rx="116" ry="10" fill="#7a2d1f" opacity=".12"/>
+  <path d="M60 128c0-32 26-56 60-56 30 0 52 18 56 42 4 22-10 40-34 46-30 8-82 2-82-32z" fill="#c8524a"/>
+  <path d="M74 126c2-22 22-40 46-40 20 0 36 12 40 28" stroke="#e98278" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M96 132c10 6 30 6 44-2" stroke="#f6d6cc" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <circle cx="142" cy="110" r="10" fill="#f6d6cc"/>
+  <path d="M168 126c20-26 54-38 88-28 12 4 22 10 30 18l18-16c4-4 10 0 8 6l-8 26 8 26c2 6-4 10-8 6l-18-16c-8 8-18 14-30 18-34 10-68-2-88-28z" fill="#5f8fa8"/>
+  <path d="M184 128c16-16 42-24 66-18" stroke="#8fb6c9" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <circle cx="200" cy="120" r="5" fill="#173a4c"/>
+  <path d="M232 112c6 10 6 22 0 32M252 112c6 10 6 22 0 32" stroke="#3f6f88" stroke-width="4" stroke-linecap="round" fill="none"/>
+</svg>

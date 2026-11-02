@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <title>Categoría sin ilustración</title>
+  <rect width="320" height="200" fill="#f3f5ee"/>
+  <circle cx="160" cy="100" r="62" fill="#ffffff" stroke="#dce4d9" stroke-width="4"/>
+  <circle cx="160" cy="100" r="40" fill="none" stroke="#dce4d9" stroke-width="4"/>
+  <path d="M74 54v26a8 8 0 0 0 8 8h0a8 8 0 0 0 8-8V54M82 54v100" stroke="#b4c0b7" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M240 54c-12 6-16 22-16 40h16v60" stroke="#b4c0b7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M148 100c4-8 20-8 24 0" stroke="#c3cfbf" stroke-width="5" stroke-linecap="round" fill="none"/>
+</svg>

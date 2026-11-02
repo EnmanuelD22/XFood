@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <title>Comidas preparadas</title>
+  <rect width="320" height="200" fill="#eef3e2"/>
+  <circle cx="262" cy="34" r="58" fill="#e2ebcb"/>
+  <circle cx="40" cy="186" r="46" fill="#e2ebcb"/>
+  <path d="M132 52c-6-10 6-16 0-26M160 48c-6-10 6-16 0-26M188 52c-6-10 6-16 0-26" fill="none" stroke="#b4c6b9" stroke-width="5" stroke-linecap="round"/>
+  <ellipse cx="160" cy="168" rx="92" ry="10" fill="#214a31" opacity=".12"/>
+  <path d="M74 104h172c0 36-38 62-86 62s-86-26-86-62z" fill="#214a31"/>
+  <path d="M74 104h172c-2 8-6 15-12 21H86c-6-6-10-13-12-21z" fill="#2c5d3f"/>
+  <ellipse cx="160" cy="104" rx="86" ry="20" fill="#f6f1e4"/>
+  <circle cx="124" cy="98" r="13" fill="#e4572e"/>
+  <circle cx="148" cy="92" r="10" fill="#f2b33d"/>
+  <path d="M162 100c8-14 26-16 36-8-10 2-20 6-36 8z" fill="#5f9a4a"/>
+  <path d="M172 92c10-12 30-10 38 0-12 0-24 2-38 0z" fill="#7cb85a"/>
+  <circle cx="196" cy="104" r="9" fill="#c7ea67"/>
+  <circle cx="108" cy="108" r="6" fill="#a5c94b"/>
+  <circle cx="214" cy="100" r="6" fill="#e4572e"/>
+  <path d="M136 108h20M182 110h14" stroke="#d19d63" stroke-width="5" stroke-linecap="round"/>
+</svg>
