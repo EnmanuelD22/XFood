@@ -79,7 +79,7 @@ type SelectFieldProps = Common & Omit<SelectHTMLAttributes<HTMLSelectElement>, "
 export function SelectField({ label, hint, error, className, id, required, children, ...select }: SelectFieldProps) {
   const { inputId, hintId, errorId, aria } = useFieldIds(id, hint, error);
   return <Shell inputId={inputId} label={label} required={required} hint={hint} hintId={hintId} error={error} errorId={errorId} className={className}>
-    <div className={`${styles.control} ${styles.selectControl}`}>
+    <div className={styles.control}>
       <select id={inputId} required={required} className={`${styles.input} ${styles.select}`} {...aria} {...select}>{children}</select>
       <Icon name="chevronDown" size={18} className={styles.chevron} />
     </div>

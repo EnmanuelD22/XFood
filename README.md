@@ -2,7 +2,7 @@
 
 Backend para conectar establecimientos con excedentes alimentarios, consumidores y organizaciones beneficiarias. Es un **monolito modular**: una API desplegable y una base SQL Server, con separación de Dominio, Aplicación, Infraestructura y presentación HTTP.
 
-Actualmente incluye el modelo de datos y sus migraciones, registro e inicio de sesión por rol (HU-04), gestión de establecimientos y publicaciones (HU-01), catálogo inicial de categorías, búsqueda pública de ofertas cercanas con detalle (HU-02, backend) y pruebas. La sesión del panel usa una cookie; la autenticación móvil y los trabajadores de notificaciones siguen pendientes. Flutter y React/Next.js son clientes previstos.
+Actualmente incluye el modelo de datos y sus migraciones, registro e inicio de sesión por rol (HU-04), gestión de establecimientos y publicaciones (HU-01), catálogo inicial de categorías, búsqueda pública de ofertas cercanas con detalle (HU-02, backend) y pruebas. La sesión del panel usa una cookie; la autenticación móvil y los trabajadores de notificaciones siguen pendientes. La web Next.js está en `web/`; Flutter es un cliente previsto.
 
 ## Tecnologías y requisitos
 
@@ -82,11 +82,11 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 - No hay Swagger UI configurada. Las rutas de negocio usan `/api/v1`; las de cuentas y sesión están descritas en `src/XFood.Application/Modules/Identity/README.md`.
 - Búsqueda pública (HU-02): `GET /api/v1/listings?latitude=&longitude=&radiusKm=&page=1&pageSize=20`, `GET /api/v1/listings/{id}` y `GET /api/v1/listings/search-options`. La lista conserva el arreglo JSON; `X-Page`, `X-Page-Size` y `X-Has-Next-Page` permiten recorrerla. Radios y tamaños de página se configuran en `Listings:Search` de `appsettings.json`; contrato y decisiones en `docs/HU-02-Cierre.md`.
 
-## Panel web HU-01
+## Aplicación web
 
-La aplicación Next.js del panel de establecimiento está en [`web/`](web/README.md). Para iniciarla, entra en esa carpeta, copia `.env.example` a `.env.local` y ejecuta `npm install` y `npm run dev`. El proxy del panel conserva la cookie HttpOnly al comunicarse con la API.
+La aplicación Next.js está en [`web/`](web/README.md) e incluye la portada pública, el registro y el inicio de sesión (HU-04), el panel del establecimiento (HU-01) y la búsqueda pública (HU-02). Para iniciarla, entra en esa carpeta, copia `.env.example` a `.env.local` y ejecuta `npm ci` y `npm run dev -- --experimental-https`. La cookie de sesión es `Secure`: el flujo con sesión necesita HTTPS en desarrollo. El proxy de la web conserva la cookie HttpOnly al comunicarse con la API.
 
-La API incluye `GET /api/v1/establishments/{establishmentId}/listings` para publicaciones propias y `GET /api/v1/categories` para categorías activas. Aplica las migraciones pendientes a la base local para incluir el catálogo inicial. La guía de configuración está en `web/README.md`.
+Aplica todas las migraciones a la base local para incluir el catálogo inicial de categorías. Rutas, sesión, sistema de diseño y el recorrido manual completo están en `web/README.md`.
 
 ## Pruebas
 

@@ -47,6 +47,7 @@
 .metrics {
   display: flex;
   margin: 0;
+  list-style: none;
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -84,14 +85,13 @@
   color: var(--color-primary);
 }
 
-.metric dt {
-  font-size: var(--text-xs);
-  font-weight: 600;
+.metricText {
+  display: grid;
 }
 
-.metric dd {
-  display: grid;
-  margin: 0;
+.metricLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
 }
 
 .metricValue {

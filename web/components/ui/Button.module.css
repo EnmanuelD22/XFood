@@ -154,6 +154,10 @@
   color: var(--color-on-dark);
 }
 
+.icon-onDark:focus-visible {
+  outline-color: var(--color-accent);
+}
+
 .icon-onDark:hover:not(:disabled) {
   background: rgb(255 255 255 / 10%);
 }

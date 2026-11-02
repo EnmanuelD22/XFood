@@ -108,25 +108,23 @@ function PanelMetrics({ listings, ready }: { listings: Listing[]; ready: boolean
   const live = listings.filter((item) => item.status === 1 && item.isFoodFit && new Date(item.pickupDeadlineUtc) > now);
   const active = live.filter((item) => item.availableQuantity > 0).length;
   const units = live.reduce((sum, item) => sum + item.availableQuantity, 0);
-  return <dl className={styles.metrics}>
+  return <ul className={styles.metrics} aria-label="Resumen de publicaciones">
     <Metric icon="listings" label="Publicaciones activas" value={ready ? active : null} caption="Visibles en XFood" />
     <Metric icon="box" label="Productos disponibles" value={ready ? units : null} caption="Unidades en total" />
-  </dl>;
+  </ul>;
 }
 
 function Metric({ icon, label, value, caption }: { icon: IconName; label: string; value: number | null; caption: string }) {
-  return <div className={styles.metric}>
+  return <li className={styles.metric}>
     <span className={styles.metricIcon}><Icon name={icon} size={20} /></span>
-    <div>
-      <dt>{label}</dt>
-      <dd>
-        <span className={styles.metricValue}>
-          <strong>{value ?? "—"}</strong>{value !== null && <span className={styles.liveDot} aria-hidden="true" />}
-        </span>
-        <span className={styles.metricCaption}>{value === null ? "Sin datos" : caption}</span>
-      </dd>
+    <div className={styles.metricText}>
+      <span className={styles.metricLabel}>{label}</span>
+      <span className={styles.metricValue}>
+        <strong>{value ?? "—"}</strong>{value !== null && <span className={styles.liveDot} aria-hidden="true" />}
+      </span>
+      <span className={styles.metricCaption}>{value === null ? "Sin datos" : caption}</span>
     </div>
-  </div>;
+  </li>;
 }
 
 function ListEmpty({ filtered, hasError, onCreate, onRetry }: { filtered: boolean; hasError: boolean; onCreate: () => void; onRetry: () => void }) {
