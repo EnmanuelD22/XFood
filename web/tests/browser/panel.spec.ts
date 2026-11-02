@@ -95,6 +95,21 @@ test("deactivation requires a reason and preserves history", async ({ page }) =>
   await expect(page.locator("article")).toContainText("Desactivada");
 });
 
+test("the public search check disappears once the sale is deactivated", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/panel");
+  await page.getByRole("button", { name: `Más acciones para ${sale.title}` }).click();
+  await page.getByRole("menuitem", { name: "Comprobar en búsqueda pública" }).click();
+  const check = page.locator("article").getByText("Aparece en la búsqueda pública dentro del radio configurado de 3 km.");
+  await expect(check).toBeVisible();
+  await page.getByRole("button", { name: `Más acciones para ${sale.title}` }).click();
+  await page.getByRole("menuitem", { name: "Desactivar" }).click();
+  await page.getByLabel("Motivo de desactivación").fill("Retirada del lote");
+  await page.getByRole("button", { name: "Confirmar desactivación" }).click();
+  await expect(page.locator("article")).toContainText("Desactivada");
+  await expect(check).toHaveCount(0);
+});
+
 test("without a session the panel sends the person to the login with the requested page", async ({ page }) => {
   await mockApi(page, false);
   await page.goto("/panel?establishmentId=abc");

@@ -63,7 +63,8 @@ export function ListingCard({ listing, categories, timeZone, visibility, checkin
         {isSale && <Button variant="soft" icon="edit" className={styles.editButton} onClick={() => onEdit(listing)}>Editar</Button>}
         {actions.length > 0 && <ActionMenu label={`Más acciones para ${listing.title}`} items={actions} />}
       </div> : <p className={styles.closed}>Publicación cerrada. Se conserva en tu historial.</p>}
-      {visibility && <p className={`${styles.visibility} ${styles[`visibility-${visibility.kind}`]}`} role="status">
+      {/* A search check describes the sale as it was; once it is no longer active the result is stale. */}
+      {activeSale && visibility && <p className={`${styles.visibility} ${styles[`visibility-${visibility.kind}`]}`} role="status">
         <Icon name={visibility.kind === "success" ? "checkCircle" : "info"} size={16} />{visibility.message}
       </p>}
     </div>

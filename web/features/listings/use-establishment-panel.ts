@@ -225,6 +225,7 @@ export function useEstablishmentPanel(account: Account) {
         setListings((items) => items.map((item) =>
           item.id === savedListing?.id ? savedListing : item,
         ));
+        forgetVisibilityCheck(savedListing.id);
         setSuccess("Publicación actualizada.");
       } else {
         savedListing = await apiRequest<Listing>("listings", {
@@ -260,6 +261,14 @@ export function useEstablishmentPanel(account: Account) {
     }
   }
 
+  function forgetVisibilityCheck(id: string) {
+    setVisibilityChecks((checks) => {
+      const next = { ...checks };
+      delete next[id];
+      return next;
+    });
+  }
+
   async function checkPublicVisibility(item: Listing) {
     if (
       item.mode !== 1 || item.status !== 1 || item.availableQuantity < 1 ||
@@ -286,11 +295,7 @@ export function useEstablishmentPanel(account: Account) {
     }
 
     setCheckingVisibility(item.id);
-    setVisibilityChecks((checks) => {
-      const next = { ...checks };
-      delete next[item.id];
-      return next;
-    });
+    forgetVisibilityCheck(item.id);
 
     try {
       const options = await apiRequest<SearchOptions>("listings/search-options");
@@ -365,6 +370,7 @@ export function useEstablishmentPanel(account: Account) {
         body: JSON.stringify({ reason: reason.trim() }),
       });
       setListings((items) => items.map((entry) => entry.id === updated.id ? updated : entry));
+      forgetVisibilityCheck(updated.id);
       setSuccess("Publicación desactivada.");
       setDeactivating(null);
       await loadListings(establishmentId);
