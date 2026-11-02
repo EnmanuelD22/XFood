@@ -144,6 +144,15 @@
   }
 }
 
+/* On wide screens the brand side stays in view while a long form scrolls. */
+@media (min-width: 1001px) {
+  .hero {
+    position: sticky;
+    top: 72px;
+    height: calc(100dvh - 72px);
+  }
+}
+
 @media (max-width: 1000px) {
   .page {
     grid-template-columns: 1fr;

@@ -99,7 +99,10 @@ export function LoginForm() {
     </header>
 
     <div className={styles.notices}>
-      {params.get("registro") === "ok" && <Notice tone="success" title="Cuenta creada">Inicia sesión con tu correo y contraseña para continuar.</Notice>}
+      {params.get("registro") === "ok" && <Notice tone="success" title="Cuenta creada">
+        Inicia sesión con tu correo y contraseña para continuar.
+        {params.get("verificacion") === "pendiente" && " Tu organización quedará pendiente de verificación hasta que un administrador la apruebe."}
+      </Notice>}
       {params.get("sesion") === "cerrada" && <Notice tone="info">Cerraste sesión correctamente.</Notice>}
       {next && session.status === "anonymous" && !params.get("sesion") && <Notice tone="info">Inicia sesión para continuar.</Notice>}
       {formError && <Notice tone="error">{formError}</Notice>}

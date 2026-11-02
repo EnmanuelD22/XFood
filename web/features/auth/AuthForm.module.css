@@ -122,8 +122,13 @@
 
 .role input {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: inherit;
   opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .role:hover {
@@ -224,7 +229,7 @@
   cursor: crosshair;
 }
 
-.pickerMap[aria-invalid="true"] {
+.pickerMap[data-invalid="true"] {
   border-color: var(--color-error);
 }
 
@@ -232,6 +237,19 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+.requiredMark {
+  color: var(--color-error);
+}
+
+.locationError {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--color-error);
+  font-size: var(--text-sm);
+  font-weight: 500;
 }
 
 .pickerMarker {

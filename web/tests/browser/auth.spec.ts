@@ -59,7 +59,7 @@ test("an establishment logs in, the role comes from /me and the panel opens", as
   const request = page.waitForRequest((req) => req.method() === "POST" && req.url().endsWith("/api/v1/auth/login"));
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
   expect((await request).postDataJSON()).toEqual({ email: "panaderia@ejemplo.com", password: "Clave#2026" });
-  await expect(page).toHaveURL(/\/panel$/);
+  await expect(page).toHaveURL(/\/panel(\?|$)/);
   await expect(page.getByRole("heading", { name: "Mis publicaciones" })).toBeVisible();
   const loginIndex = calls.indexOf("POST /api/v1/auth/login");
   expect(calls.slice(loginIndex + 1)).toContain("GET /api/v1/me");
@@ -80,7 +80,7 @@ test("the requested panel page is restored after login", async ({ page }) => {
   await expect(page).toHaveURL(/\/login\?next=%2Fpanel$/);
   await fillLogin(page);
   await page.getByRole("button", { name: "Iniciar sesión" }).click();
-  await expect(page).toHaveURL(/\/panel$/);
+  await expect(page).toHaveURL(/\/panel(\?|$)/);
 });
 
 test("wrong credentials are explained, the password is cleared and the email is kept", async ({ page }) => {
@@ -135,4 +135,82 @@ test("mobile login has no horizontal scroll and works with reduced motion", asyn
   await expect(page.getByRole("heading", { name: "Bienvenido a XFood" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: "test-results/login-mobile.png", fullPage: true, animations: "disabled" });
+});
+
+test("an establishment registers with its location and is sent to the login", async ({ page }) => {
+  await mockAuth(page);
+  await page.route("**/api/v1/auth/register", (route) => route.fulfill({ status: 201, json: establishmentAccount }));
+  await page.goto("/registro");
+  await page.getByRole("radio", { name: /Establecimiento/ }).check();
+  await page.getByLabel("Nombre de la persona responsable").fill("Luis Pérez");
+  await page.getByLabel("Correo electrónico").fill("pan@ejemplo.com");
+  await page.getByRole("textbox", { name: "Contraseña", exact: true }).fill("Clave#2026");
+  await page.getByLabel("Nombre del establecimiento").fill("Panadería Central");
+  await page.getByLabel("Teléfono de contacto").fill("809-555-0102");
+  await page.getByLabel("Dirección").fill("Av. Duarte 10");
+  await page.getByRole("button", { name: "Usar el centro del mapa" }).click();
+  await expect(page.getByText(/Ubicación marcada: 18\.4861/)).toBeVisible();
+  await page.screenshot({ path: "test-results/register-establishment.png", fullPage: true, animations: "disabled" });
+  const request = page.waitForRequest((req) => req.method() === "POST" && req.url().endsWith("/api/v1/auth/register"));
+  await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
+  const body = (await request).postDataJSON();
+  expect(body).toMatchObject({ email: "pan@ejemplo.com", displayName: "Luis Pérez", role: "Establishment",
+    establishment: { name: "Panadería Central", contactPhone: "809-555-0102", address: "Av. Duarte 10" } });
+  expect(body.establishment.latitude).toBeCloseTo(18.4861, 4);
+  expect(body.organization).toBeUndefined();
+  await expect(page).toHaveURL(/\/login\?registro=ok$/);
+  await expect(page.getByText("Cuenta creada")).toBeVisible();
+});
+
+test("registration without a location points to the map and keeps the request unsent", async ({ page }) => {
+  const calls = await mockAuth(page);
+  await page.goto("/registro");
+  await page.getByRole("radio", { name: /Establecimiento/ }).check();
+  await page.getByLabel("Nombre de la persona responsable").fill("Luis Pérez");
+  await page.getByLabel("Correo electrónico").fill("pan@ejemplo.com");
+  await page.getByRole("textbox", { name: "Contraseña", exact: true }).fill("Clave#2026");
+  await page.getByLabel("Nombre del establecimiento").fill("Panadería Central");
+  await page.getByLabel("Teléfono de contacto").fill("809-555-0102");
+  await page.getByLabel("Dirección").fill("Av. Duarte 10");
+  await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
+  await expect(page.getByText("Marca la ubicación del establecimiento en el mapa.")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Mapa para ubicar el establecimiento" })).toHaveAccessibleDescription(/Marca la ubicación/);
+  expect(calls).not.toContain("POST /api/v1/auth/register");
+});
+
+test("server validation errors stay next to their fields", async ({ page }) => {
+  await mockAuth(page);
+  await page.route("**/api/v1/auth/register", (route) => route.fulfill({ status: 400, json: {
+    code: "VALIDATION_ERROR", message: "Revisa los datos", traceId: "t",
+    errors: { email: ["Ya existe una cuenta con este correo."], password: ["La contraseña debe incluir al menos un símbolo."] },
+  } }));
+  await page.goto("/registro");
+  await page.getByLabel("Nombre completo").fill("Ana");
+  await page.getByLabel("Correo electrónico").fill("ana@ejemplo.com");
+  await page.getByRole("textbox", { name: "Contraseña", exact: true }).fill("Clave2026");
+  await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
+  await expect(page.getByText("Ya existe una cuenta con este correo.")).toBeVisible();
+  await expect(page.getByLabel("Correo electrónico")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Correo electrónico")).toBeFocused();
+  await expect(page.getByText("La contraseña debe incluir al menos un símbolo.")).toBeVisible();
+  await expect(page).toHaveURL(/\/registro$/);
+});
+
+test("an organization registers and the login mentions the pending verification", async ({ page }) => {
+  await mockAuth(page);
+  await page.route("**/api/v1/auth/register", (route) => route.fulfill({ status: 201, json: {} }));
+  await page.goto("/registro");
+  await page.getByRole("radio", { name: /Organización/ }).check();
+  await page.getByLabel("Nombre de la persona responsable").fill("Rosa");
+  await page.getByLabel("Correo electrónico").fill("rosa@ejemplo.com");
+  await page.getByRole("textbox", { name: "Contraseña", exact: true }).fill("Clave#2026");
+  await page.getByLabel("Nombre de la organización").fill("Banco de Alimentos");
+  await page.getByLabel("Teléfono de contacto").fill("8095550000");
+  await page.getByLabel("Dirección").fill("Calle 1");
+  const request = page.waitForRequest((req) => req.method() === "POST" && req.url().endsWith("/api/v1/auth/register"));
+  await page.getByRole("button", { name: "Crear cuenta", exact: true }).click();
+  const body = (await request).postDataJSON();
+  expect(body.organization).toMatchObject({ name: "Banco de Alimentos" });
+  expect(body.establishment).toBeUndefined();
+  await expect(page.getByText(/pendiente de verificación/)).toBeVisible();
 });
