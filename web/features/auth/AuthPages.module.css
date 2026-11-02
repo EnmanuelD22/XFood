@@ -1,0 +1,58 @@
+/* Centered message pages: access denied, not found, organization status. */
+.message {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  width: min(560px, 100%);
+  margin: var(--space-7) auto;
+  padding: var(--space-7) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  animation: enter var(--duration-slow) var(--ease-out) both;
+}
+
+.message h1 {
+  font-size: var(--text-xl);
+  font-weight: 800;
+}
+
+.message > p {
+  color: var(--color-muted);
+}
+
+.messageIcon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--color-sage-soft);
+  color: var(--color-primary);
+  box-shadow: 0 0 0 8px rgb(226 235 203 / 45%);
+}
+
+.messageActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (max-width: 560px) {
+  .message {
+    margin: var(--space-5) var(--space-4);
+    width: auto;
+    padding: var(--space-6) var(--space-4);
+  }
+}

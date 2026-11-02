@@ -1,5 +1,7 @@
 import type { FieldErrors, FormValues, Listing } from "./types";
 
+export { formatDate, formatMoney } from "../../lib/format.ts";
+
 export function getListingStatus(status: number, deadline: string) {
   if ((status === 1 || status === 2) && new Date(deadline) <= new Date()) return "Vencida";
 
@@ -11,25 +13,6 @@ export function getListingStatus(status: number, deadline: string) {
   };
 
   return labels[status] ?? "Estado desconocido";
-}
-
-export function formatMoney(value?: number | null) {
-  if (value == null) return "—";
-
-  return new Intl.NumberFormat("es-DO", {
-    style: "currency",
-    currency: "DOP",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-export function formatDate(value: string, timeZone: string) {
-  return new Intl.DateTimeFormat("es-DO", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone,
-  }).format(new Date(value));
 }
 
 export function localInputToUtc(value: string, timeZone: string) {

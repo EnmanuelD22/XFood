@@ -1,0 +1,167 @@
+name: XFood CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release_images:
+        description: Export the exact container images that passed the real CRUD test
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    name: Backend and SQL Server
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Developer
+          # Disposable credential, scoped to this ephemeral CI service; no repository secret is needed.
+          MSSQL_SA_PASSWORD: Xf!${{ github.run_id }}_${{ github.run_attempt }}aA9
+        ports: ['1433:1433']
+        options: >-
+          --health-cmd '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -C -b -Q "SELECT 1"'
+          --health-interval 10s --health-timeout 5s --health-retries 20 --health-start-period 20s
+    env:
+      DOTNET_NOLOGO: 'true'
+      DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+      XFOOD_REQUIRE_SQL_TESTS: 'true'
+      XFOOD_TEST_SQLSERVER: Server=localhost,1433;User ID=sa;Password=Xf!${{ github.run_id }}_${{ github.run_attempt }}aA9;Encrypt=True;TrustServerCertificate=True
+      # EF design-time commands do not apply migrations or connect to this database.
+      ConnectionStrings__XFood: Server=localhost,1433;Database=XFood_ModelCheck;User ID=sa;Password=Xf!${{ github.run_id }}_${{ github.run_attempt }}aA9;Encrypt=True;TrustServerCertificate=True
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 10.0.400
+      - run: dotnet tool restore
+      - run: dotnet restore XFood.slnx
+      - run: dotnet build XFood.slnx --configuration Release --no-restore
+      - run: dotnet test XFood.slnx --configuration Release --no-build --logger trx --results-directory .artifacts/tests
+      - name: Check model against the migration snapshot
+        run: dotnet tool run dotnet-ef migrations has-pending-model-changes --project src/XFood.Infrastructure --startup-project src/XFood.Api --context XFoodDbContext --configuration Release --no-build
+      - name: Generate SQL for review (never apply it)
+        run: |
+          mkdir -p .artifacts/schema
+          dotnet tool run dotnet-ef migrations script --idempotent --project src/XFood.Infrastructure --startup-project src/XFood.Api --context XFoodDbContext --configuration Release --no-build --output .artifacts/schema/migrations.sql
+          git rev-parse HEAD > .artifacts/schema/commit.txt
+          cd .artifacts/schema && sha256sum migrations.sql > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: backend-results-${{ github.run_id }}
+          include-hidden-files: true
+          path: .artifacts/tests
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: schema-${{ github.sha }}
+          include-hidden-files: true
+          path: .artifacts/schema
+          if-no-files-found: error
+          retention-days: 14
+
+  frontend:
+    name: Web and browser tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.13.0
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --reporter=line,html
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: browser-results-${{ github.run_id }}
+          path: |
+            web/playwright-report
+            web/test-results
+          retention-days: 14
+
+  containers:
+    name: Containers and real CRUD
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.13.0
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - run: npm ci --prefix web
+      - run: cd web && npx playwright install --with-deps chromium
+      - name: Build and test the deployment topology with a disposable database
+        run: bash scripts/ci/container-smoke.sh
+      - name: Export the tested images for CD
+        if: inputs.release_images == true
+        run: |
+          mkdir -p .artifacts/images
+          docker save xfood-api:ci xfood-web:ci | gzip -1 > .artifacts/images/images.tar.gz
+          cd .artifacts/images && sha256sum images.tar.gz > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: inputs.release_images == true
+        with:
+          name: tested-images-${{ github.sha }}
+          include-hidden-files: true
+          path: .artifacts/images
+          retention-days: 2
+          compression-level: 0
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: container-results-${{ github.run_id }}
+          include-hidden-files: true
+          path: |
+            .artifacts/container-logs.txt
+            web/test-results
+          retention-days: 14
+
+  required:
+    name: CI required
+    if: always()
+    needs: [backend, frontend, containers]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require all checks to pass
+        env:
+          BACKEND: ${{ needs.backend.result }}
+          FRONTEND: ${{ needs.frontend.result }}
+          CONTAINERS: ${{ needs.containers.result }}
+        run: test "$BACKEND" = success && test "$FRONTEND" = success && test "$CONTAINERS" = success

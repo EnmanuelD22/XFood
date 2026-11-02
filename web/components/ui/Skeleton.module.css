@@ -1,0 +1,44 @@
+.card {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.media {
+  aspect-ratio: 16 / 9;
+  background: var(--color-surface-muted);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.lines {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.lines span {
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.lines span:first-child {
+  width: 70%;
+  height: 16px;
+}
+
+.lines span:nth-child(2) {
+  width: 45%;
+}
+
+.lines span:last-child {
+  width: 85%;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}

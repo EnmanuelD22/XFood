@@ -1,0 +1,5 @@
+{
+  "ConnectionStrings": {
+    "XFood": "Server=<SQL_SERVER>;Database=<DATABASE>;Integrated Security=True;Encrypt=True;TrustServerCertificate=True"
+  }
+}

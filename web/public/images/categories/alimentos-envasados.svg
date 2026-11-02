@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" width="320" height="200">
+  <title>Alimentos envasados</title>
+  <rect width="320" height="200" fill="#f4f0e6"/>
+  <circle cx="60" cy="34" r="52" fill="#e8e1cd"/>
+  <circle cx="288" cy="176" r="52" fill="#e8e1cd"/>
+  <ellipse cx="160" cy="172" rx="118" ry="10" fill="#4b3f1f" opacity=".12"/>
+  <rect x="58" y="70" width="70" height="98" rx="12" fill="#f2b33d"/>
+  <rect x="62" y="56" width="62" height="18" rx="5" fill="#214a31"/>
+  <rect x="68" y="98" width="50" height="40" rx="6" fill="#fff7e6"/>
+  <circle cx="93" cy="118" r="11" fill="#d9452b"/>
+  <path d="M93 107c4-6 10-8 14-6-4 4-8 6-14 6z" fill="#5f9a4a"/>
+  <rect x="140" y="88" width="62" height="80" rx="8" fill="#5f8fa8"/>
+  <ellipse cx="171" cy="88" rx="31" ry="8" fill="#8fb6c9"/>
+  <rect x="140" y="112" width="62" height="32" fill="#eef4ea"/>
+  <path d="M150 128h42" stroke="#214a31" stroke-width="5" stroke-linecap="round"/>
+  <ellipse cx="171" cy="168" rx="31" ry="6" fill="#3f6f88"/>
+  <path d="M214 60h56l6 108h-68z" fill="#c7ea67"/>
+  <path d="M214 60l-6 14h68l-6-14z" fill="#a5c94b"/>
+  <path d="M226 96h32M224 112h36" stroke="#214a31" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="242" cy="140" r="12" fill="#ffffff"/>
+  <path d="M236 140h12" stroke="#d19d63" stroke-width="4" stroke-linecap="round"/>
+</svg>

@@ -30,6 +30,8 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString, sql =>
                 sql.MigrationsAssembly(typeof(XFoodDbContext).Assembly.GetName().Name)));
 
+        services.AddHealthChecks().AddCheck<DatabaseReadinessCheck>("sqlserver", tags: ["ready"]);
+
         services.AddIdentityModule(configuration);
         services.AddScoped<IOrganizationOnboarding, OrganizationOnboarding>();
         services.AddScoped<IEstablishmentOnboarding, EstablishmentOnboarding>();

@@ -1,0 +1,65 @@
+services:
+  gateway:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    environment:
+      XFOOD_SITE_ADDRESS: ${XFOOD_DOMAIN:?Set XFOOD_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      app:
+        ipv4_address: ${XFOOD_PROXY_IP:-172.30.50.2}
+    depends_on: [api, web]
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  api:
+    image: ${XFOOD_API_IMAGE:?Use a reviewed API image digest}
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: '8080'
+      ASPNETCORE_HTTPS_PORT: '443'
+      AllowedHosts: ${XFOOD_DOMAIN:?Set XFOOD_DOMAIN}
+      Cors__PanelOrigins__0: https://${XFOOD_DOMAIN}
+      Security__ApiOrigins__0: https://${XFOOD_DOMAIN}
+      ReverseProxy__KnownProxies__0: ${XFOOD_PROXY_IP:-172.30.50.2}
+      DataProtection__KeysPath: /app/keys
+      # A private server-side JSON file, not an image layer or a GitHub artifact.
+      Deployment__SettingsFile: /run/secrets/api_settings
+    secrets: [api_settings]
+    volumes: [identity_keys:/app/keys]
+    networks: [app]
+    logging: *logging
+
+  web:
+    image: ${XFOOD_WEB_IMAGE:?Use a reviewed web image digest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Browser API requests go directly through Caddy; this also supports the Next server proxy.
+      XFOOD_API_BASE_URL: http://api:8080/api/v1
+    networks: [app]
+    logging: *logging
+
+networks:
+  app:
+    ipam:
+      config:
+        - subnet: ${XFOOD_SUBNET:-172.30.50.0/24}
+          ip_range: ${XFOOD_DYNAMIC_RANGE:-172.30.50.128/25}
+
+volumes:
+  identity_keys:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  api_settings:
+    file: ${XFOOD_API_SETTINGS_FILE:?Set the absolute private settings file path}

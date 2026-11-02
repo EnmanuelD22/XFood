@@ -1,16 +1,4 @@
-export type Establishment = {
-  id: string;
-  name: string;
-  status: string;
-  memberRole: string;
-  isPrimary: boolean;
-};
-
-export type Account = {
-  role: string;
-  status: string;
-  establishments?: Establishment[] | null;
-};
+export type { Account, Establishment } from "../auth/types";
 
 export type EstablishmentProfile = {
   timeZoneId?: string;
@@ -51,13 +39,6 @@ export type SearchOptions = {
   defaultRadiusKm: number;
   maxResults: number;
   defaultPageSize: number;
-};
-
-export type ApiError = {
-  code?: string;
-  message?: string;
-  errors?: Record<string, string[]>;
-  traceId?: string;
 };
 
 export type VisibilityCheck = {

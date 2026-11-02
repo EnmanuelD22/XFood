@@ -434,3 +434,9 @@ FodyWeavers.xsd
 
 # Documentación de referencia local
 /documentacion/
+# Archivos privados de ejecución local
+/.local/
+
+# Private deployment configuration remains on the deployment host.
+/deploy/*.env
+/deploy/secrets/

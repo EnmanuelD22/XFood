@@ -2,11 +2,11 @@
 
 Backend para conectar establecimientos con excedentes alimentarios, consumidores y organizaciones beneficiarias. Es un **monolito modular**: una API desplegable y una base SQL Server, con separación de Dominio, Aplicación, Infraestructura y presentación HTTP.
 
-Actualmente incluye el modelo de datos y sus migraciones, registro e inicio de sesión por rol (HU-04), gestión de establecimientos y publicaciones (HU-01), catálogo inicial de categorías, búsqueda pública de ofertas cercanas con detalle (HU-02, backend) y pruebas. La sesión del panel usa una cookie; la autenticación móvil y los trabajadores de notificaciones siguen pendientes. Flutter y React/Next.js son clientes previstos.
+Actualmente incluye el modelo de datos y sus migraciones, registro e inicio de sesión por rol (HU-04), gestión de establecimientos y publicaciones (HU-01), catálogo inicial de categorías, búsqueda pública de ofertas cercanas con detalle (HU-02, backend) y pruebas. La sesión del panel usa una cookie; la autenticación móvil y los trabajadores de notificaciones siguen pendientes. La web Next.js está en `web/`; Flutter es un cliente previsto.
 
 ## Tecnologías y requisitos
 
-- .NET SDK 10 compatible con `net10.0` y soluciones `.slnx` (validado con SDK 10.0.400).
+- .NET SDK 10.0.400, definido en `global.json` (admite parches posteriores de la misma banda). Los proyectos usan `net10.0` y la solución `.slnx`.
 - ASP.NET Core; OpenAPI, EF Core SQL Server, Identity EF y herramientas EF en versión 10.0.11.
 - xUnit 2.9.3, runner 3.1.4 y Microsoft.NET.Test.Sdk 17.14.1.
 - System.Security.Cryptography.Pkcs 10.0.14, fijado por seguridad de la dependencia transitiva.
@@ -82,11 +82,11 @@ El perfil configura Development, HTTPS en `https://localhost:7293` y HTTP en `ht
 - No hay Swagger UI configurada. Las rutas de negocio usan `/api/v1`; las de cuentas y sesión están descritas en `src/XFood.Application/Modules/Identity/README.md`.
 - Búsqueda pública (HU-02): `GET /api/v1/listings?latitude=&longitude=&radiusKm=&page=1&pageSize=20`, `GET /api/v1/listings/{id}` y `GET /api/v1/listings/search-options`. La lista conserva el arreglo JSON; `X-Page`, `X-Page-Size` y `X-Has-Next-Page` permiten recorrerla. Radios y tamaños de página se configuran en `Listings:Search` de `appsettings.json`; contrato y decisiones en `docs/HU-02-Cierre.md`.
 
-## Panel web HU-01
+## Aplicación web
 
-La aplicación Next.js del panel de establecimiento está en [`web/`](web/README.md). Para iniciarla, entra en esa carpeta, copia `.env.example` a `.env.local` y ejecuta `npm install` y `npm run dev`. El proxy del panel conserva la cookie HttpOnly al comunicarse con la API.
+La aplicación Next.js está en [`web/`](web/README.md) e incluye la portada pública, el registro y el inicio de sesión (HU-04), el panel del establecimiento (HU-01) y la búsqueda pública (HU-02). Para iniciarla, entra en esa carpeta, copia `.env.example` a `.env.local` y ejecuta `npm ci` y `npm run dev -- --experimental-https`. La cookie de sesión es `Secure`: el flujo con sesión necesita HTTPS en desarrollo. El proxy de la web conserva la cookie HttpOnly al comunicarse con la API.
 
-La API incluye `GET /api/v1/establishments/{establishmentId}/listings` para publicaciones propias y `GET /api/v1/categories` para categorías activas. Aplica las migraciones pendientes a la base local para incluir el catálogo inicial. La guía de configuración está en `web/README.md`.
+Aplica todas las migraciones a la base local para incluir el catálogo inicial de categorías. Rutas, sesión, sistema de diseño y el recorrido manual completo están en `web/README.md`.
 
 ## Pruebas
 
@@ -98,7 +98,7 @@ dotnet test XFood.slnx --no-build
 
 Las pruebas de integración usan **su propia configuración**, nunca los User Secrets de la API: la variable `XFOOD_TEST_SQLSERVER` con una cadena de conexión al servidor (se ignora el nombre de base). Cada ejecución crea `XFood_Tests_<guid>`, aplica las migraciones y la borra al terminar. Antes de migrar o borrar, el código comprueba que el nombre tenga ese formato y nunca sea `XFoodDB`. Sin la variable, esas pruebas aparecen como omitidas.
 
-**Antes de integrar en `develop` deben ejecutarse con SQL Server** (el repositorio no tiene CI). Con `XFOOD_REQUIRE_SQL_TESTS=true`, una configuración ausente hace fallar las pruebas en lugar de omitirlas:
+**Antes de integrar en `develop` deben ejecutarse con SQL Server.** El workflow de CI las exige contra SQL Server efímero. Localmente, con `XFOOD_REQUIRE_SQL_TESTS=true`, una configuración ausente hace fallar las pruebas en lugar de omitirlas:
 
 ```powershell
 $env:XFOOD_TEST_SQLSERVER='Server=.\SQLEXPRESS;Integrated Security=True;Encrypt=True;TrustServerCertificate=True'
@@ -128,3 +128,14 @@ dotnet tool run dotnet-ef migrations has-pending-model-changes --project src/XFo
 Revise el SQL, pruebe en una base aislada y versione migración, diseñador y snapshot junto con las entidades y mapeos. Las transacciones de stock, autorización, idempotencia, existencia del principal y procesamiento del outbox deben implementarse y probarse en sus casos de uso. El índice de principal solo garantiza como máximo uno activo; padre y primer principal deben confirmarse en una sola transacción.
 
 `documentacion/`, `AGENTS.md`, `.agents/` y `.codex/` están ignorados por Git y **no llegan en una copia clonada**. Comparta esas referencias por el canal acordado del equipo; la guía versionada está en `docs/`. Los artefactos `bin/`, `obj/`, secretos y bases locales no deben incluirse en commits. Siguen pendientes la evidencia de verificación, resolución de incidencias parciales/tardías, proveedor push y retención.
+
+
+## Ejecución integrada revisada
+
+La versión revisada conserva el diseño de esta rama y añade correcciones de sesión y ubicación. Desde la raíz, `./scripts/Start-XFood.ps1` inicia API y web con HTTPS local en `https://localhost:3002/`. No aplica migraciones automáticamente. Las instrucciones, rutas y resultados están en [la guía de revisión](docs/Revision-frontend-integracion.md).
+
+## CI y CD
+
+GitHub Actions comprueba los PR hacia `develop` y `main`: backend y SQL Server aislado, snapshot y SQL de migraciones, frontend, pruebas de navegador y CRUD real con contenedores desechables. El estado `CI required` debe configurarse como obligatorio en las reglas de esas ramas.
+
+CD prepara las mismas imágenes verificadas para un servidor Linux x86-64 con Docker, Next.js, una API modular y Caddy HTTPS. Es manual, admite `develop → staging` y `main → production`, y permanece bloqueado hasta configurar servidor, environments y la variable `XFOOD_CD_ENABLED`. No aplica migraciones a bases compartidas. Instrucciones de activación, secretos, recuperación y trabajo del equipo: [CI/CD de XFood](docs/CI-CD.md).

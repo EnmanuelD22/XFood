@@ -6,6 +6,8 @@ using XFood.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddDeploymentSettings();
+builder.Services.AddDeploymentSupport(builder.Configuration);
 builder.Services.AddOpenApi(options => options.AddListingSearchDocumentation());
 builder.Services.AddApiErrors();
 builder.Services.AddXFoodInfrastructure(builder.Configuration);
@@ -13,6 +15,7 @@ builder.Services.AddIdentityApi(builder.Configuration);
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseApiErrors();
 
 if (app.Environment.IsDevelopment())
@@ -28,6 +31,10 @@ app.UseAuthorization();
 
 app.MapGet("/health/live", () => Results.Ok(new { status = "live" }))
     .WithName("Liveness");
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+});
 
 var api = app.MapGroup("/api/v1");
 api.MapIdentityEndpoints();

@@ -43,3 +43,6 @@ next-env.d.ts
 
 /test-results/
 /playwright-report/
+
+# local HTTPS certificates created by next dev --experimental-https
+/certificates/

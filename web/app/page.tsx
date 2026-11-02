@@ -1,5 +1,5 @@
-import { EstablishmentPanel } from "@/features/listings/EstablishmentPanel";
+import { HomePage } from "@/features/home/HomePage";
 
-export default function HomePage() {
-  return <EstablishmentPanel />;
+export default function Home() {
+  return <HomePage />;
 }

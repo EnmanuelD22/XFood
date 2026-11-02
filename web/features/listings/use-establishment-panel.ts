@@ -1,7 +1,8 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { apiGetWithHeaders, apiRequest, ApiRequestError } from "./api";
+import { apiGetWithHeaders, apiRequest, ApiRequestError } from "@/lib/api";
+import { activeEstablishments, pickEstablishment } from "@/features/panel/establishments";
 import { EMPTY_FORM } from "./constants";
 import {
   getListingStatus,
@@ -22,12 +23,11 @@ import type {
   VisibilityCheck,
 } from "./types";
 
-export function useEstablishmentPanel() {
+export function useEstablishmentPanel(account: Account) {
   const contextRequest = useRef<AbortController | null>(null);
   const categoryPath = process.env.NEXT_PUBLIC_XFOOD_CATEGORIES_PATH ?? "categories";
   const categoryPathReady = Boolean(categoryPath);
 
-  const [account, setAccount] = useState<Account | null>(null);
   const [establishmentId, setEstablishmentId] = useState("");
   const [timeZone, setTimeZone] = useState("America/Santo_Domingo");
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(
@@ -54,21 +54,19 @@ export function useEstablishmentPanel() {
   const [checkingVisibility, setCheckingVisibility] = useState("");
   const [visibilityChecks, setVisibilityChecks] = useState<Record<string, VisibilityCheck>>({});
 
-  const establishments = useMemo(
-    () => account?.establishments?.filter((item) => item.status === "Active") ?? [],
-    [account],
-  );
+  const establishments = useMemo(() => activeEstablishments(account), [account]);
   const selectedEstablishment = establishments.find((item) => item.id === establishmentId);
-  const canManage = account?.role === "Establishment" && account.status === "Active" && Boolean(selectedEstablishment) && !loading;
+  const canManage = Boolean(selectedEstablishment) && !loading;
   const visibleListings = useMemo(
     () => listings.filter((item) => {
-      const matchesText = `${item.title} ${item.description}`
+      const category = categories.find((entry) => entry.id === item.categoryId)?.name ?? "";
+      const matchesText = `${item.title} ${item.description} ${category}`
         .toLocaleLowerCase()
-        .includes(query.toLocaleLowerCase());
+        .includes(query.trim().toLocaleLowerCase());
       const status = getListingStatus(item.status, item.pickupDeadlineUtc);
       return matchesText && (filter === "all" || status === filter);
     }),
-    [filter, listings, query],
+    [categories, filter, listings, query],
   );
 
   const loadListings = useCallback(async (id: string, signal = contextRequest.current?.signal) => {
@@ -116,24 +114,9 @@ export function useEstablishmentPanel() {
     setLoadError("");
 
     try {
-      const currentAccount = await apiRequest<Account>("me", { signal });
-      if (signal.aborted) return;
-      setAccount(currentAccount);
-      if (currentAccount.role !== "Establishment" || currentAccount.status !== "Active") {
-        setListings([]);
-        setLoadError("Esta sección está disponible para una cuenta activa de establecimiento.");
-        return;
-      }
+      const selected = pickEstablishment(account, new URLSearchParams(window.location.search).get("establishmentId"));
 
-      const activeEstablishments = (currentAccount.establishments ?? [])
-        .filter((item) => item.status === "Active");
-      const requestedId = new URLSearchParams(window.location.search).get("establishmentId");
-      const selected = activeEstablishments.find((item) => item.id === requestedId)
-        ?? (activeEstablishments.length === 1
-          ? activeEstablishments[0]
-          : activeEstablishments.find((item) => item.isPrimary));
-
-      if (!activeEstablishments.length) {
+      if (!activeEstablishments(account).length) {
         setEstablishmentId("");
         setListings([]);
         setLoadError("Tu cuenta no tiene un establecimiento activo habilitado para administrar publicaciones.");
@@ -152,18 +135,17 @@ export function useEstablishmentPanel() {
       await loadListings(selected.id, signal);
     } catch (error) {
       if (signal.aborted) return;
-      setAccount(null);
       setListings([]);
       setCoordinates(null);
       setLoadError(
         error instanceof ApiRequestError && error.status === 401
-          ? "Inicia sesión con una cuenta de establecimiento para continuar."
+          ? "Tu sesión terminó. Vuelve a iniciar sesión."
           : (error as Error).message || "No se pudo conectar con XFood.",
       );
     } finally {
       if (!signal.aborted) setLoading(false);
     }
-  }, [loadListings, loadProfile]);
+  }, [account, loadListings, loadProfile]);
 
   useEffect(() => {
     void loadContext();
@@ -243,6 +225,7 @@ export function useEstablishmentPanel() {
         setListings((items) => items.map((item) =>
           item.id === savedListing?.id ? savedListing : item,
         ));
+        forgetVisibilityCheck(savedListing.id);
         setSuccess("Publicación actualizada.");
       } else {
         savedListing = await apiRequest<Listing>("listings", {
@@ -278,6 +261,14 @@ export function useEstablishmentPanel() {
     }
   }
 
+  function forgetVisibilityCheck(id: string) {
+    setVisibilityChecks((checks) => {
+      const next = { ...checks };
+      delete next[id];
+      return next;
+    });
+  }
+
   async function checkPublicVisibility(item: Listing) {
     if (
       item.mode !== 1 || item.status !== 1 || item.availableQuantity < 1 ||
@@ -304,11 +295,7 @@ export function useEstablishmentPanel() {
     }
 
     setCheckingVisibility(item.id);
-    setVisibilityChecks((checks) => {
-      const next = { ...checks };
-      delete next[item.id];
-      return next;
-    });
+    forgetVisibilityCheck(item.id);
 
     try {
       const options = await apiRequest<SearchOptions>("listings/search-options");
@@ -383,6 +370,7 @@ export function useEstablishmentPanel() {
         body: JSON.stringify({ reason: reason.trim() }),
       });
       setListings((items) => items.map((entry) => entry.id === updated.id ? updated : entry));
+      forgetVisibilityCheck(updated.id);
       setSuccess("Publicación desactivada.");
       setDeactivating(null);
       await loadListings(establishmentId);
@@ -423,18 +411,8 @@ export function useEstablishmentPanel() {
     }
   }
 
-  async function logout() {
-    try {
-      await apiRequest("auth/logout", { method: "POST" });
-      window.location.reload();
-    } catch (error) {
-      setLoadError((error as Error).message || "No se pudo cerrar la sesión.");
-    }
-  }
-
   return {
     state: {
-      account,
       canManage,
       deactivating,
       deactivationBusy,
@@ -471,7 +449,6 @@ export function useEstablishmentPanel() {
       setDeactivating,
       loadContext,
       loadListings,
-      logout,
       openCreate,
       openEdit,
       saveListing,

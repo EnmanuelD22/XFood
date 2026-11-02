@@ -1,0 +1,8 @@
+# Copy to /opt/xfood/staging/environment.env on the SERVER, outside the repository.
+# This file contains no connection or credential.
+XFOOD_DOMAIN=staging.example.com
+XFOOD_API_SETTINGS_FILE=/opt/xfood/staging/secrets/api-settings.json
+# Use another subnet/proxy IP if staging and production share a Docker host.
+XFOOD_SUBNET=172.30.50.0/24
+XFOOD_DYNAMIC_RANGE=172.30.50.128/25
+XFOOD_PROXY_IP=172.30.50.2

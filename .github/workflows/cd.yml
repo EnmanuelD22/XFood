@@ -1,0 +1,141 @@
+name: XFood CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Destination (develop -> staging; main -> production)
+        required: true
+        type: choice
+        options: [staging, production]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate release request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require explicit activation and an allowed branch
+        env:
+          ENABLED: ${{ vars.XFOOD_CD_ENABLED }}
+          TARGET: ${{ inputs.environment }}
+          REF: ${{ github.ref }}
+        run: |
+          test "$ENABLED" = true || { echo 'Configure the server and environments, then set XFOOD_CD_ENABLED=true.' >&2; exit 1; }
+          case "$TARGET:$REF" in
+            staging:refs/heads/develop|production:refs/heads/main) ;;
+            *) echo 'Only develop -> staging and main -> production are allowed.' >&2; exit 1 ;;
+          esac
+
+  checks:
+    name: Release checks
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+    with:
+      release_images: true
+    permissions:
+      contents: read
+
+  publish:
+    name: Publish immutable images
+    needs: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      api: ${{ steps.images.outputs.api }}
+      web: ${{ steps.images.outputs.web }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: tested-images-${{ github.sha }}
+          path: .artifacts/images
+      - name: Load the exact images tested by CI
+        run: |
+          cd .artifacts/images && sha256sum --check SHA256SUMS
+          gzip -dc images.tar.gz | docker load
+      - name: Image names
+        id: names
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "api=ghcr.io/${REPOSITORY,,}/api" >> "$GITHUB_OUTPUT"
+          echo "web=ghcr.io/${REPOSITORY,,}/web" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish and record the exact images (no rebuild)
+        id: images
+        env:
+          API_REPOSITORY: ${{ steps.names.outputs.api }}
+          WEB_REPOSITORY: ${{ steps.names.outputs.web }}
+        run: |
+          tag="$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          for component in api web; do
+            test "$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "xfood-$component:ci")" = "$GITHUB_SHA"
+            if test "$component" = api; then repository=$API_REPOSITORY; else repository=$WEB_REPOSITORY; fi
+            docker tag "xfood-$component:ci" "$repository:$tag"
+            docker push "$repository:$tag"
+            image=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$repository:$tag" | grep "^$repository@sha256:")
+            [[ $image =~ ^ghcr\.io/[a-z0-9._/-]+@sha256:[a-f0-9]{64}$ ]]
+            echo "$component=$image" >> "$GITHUB_OUTPUT"
+          done
+
+  deploy:
+    name: Deploy approved release
+    needs: publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Prepare a credential-free deployment manifest
+        env:
+          API: ${{ needs.publish.outputs.api }}
+          WEB: ${{ needs.publish.outputs.web }}
+        run: |
+          mkdir -p .artifacts/release
+          cp deploy/compose.yml deploy/Caddyfile scripts/ci/deploy.sh .artifacts/release/
+          printf 'XFOOD_API_IMAGE=%s\nXFOOD_WEB_IMAGE=%s\n' "$API" "$WEB" > .artifacts/release/images.env
+          printf '%s\n' "$GITHUB_SHA" > .artifacts/release/commit.txt
+          cd .artifacts/release && sha256sum compose.yml Caddyfile deploy.sh images.env commit.txt > SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: deployment-${{ inputs.environment }}-${{ github.sha }}-${{ github.run_attempt }}
+          include-hidden-files: true
+          path: .artifacts/release
+          retention-days: 14
+      - name: Transfer and activate through verified SSH
+        env:
+          SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+          SSH_USER: ${{ vars.DEPLOY_SSH_USER }}
+          SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+          TARGET: ${{ inputs.environment }}
+        run: bash scripts/ci/ssh-deploy.sh
+      - name: Release summary
+        env:
+          API: ${{ needs.publish.outputs.api }}
+          WEB: ${{ needs.publish.outputs.web }}
+          TARGET: ${{ inputs.environment }}
+        run: |
+          printf 'Environment: %s\nCommit: %s\nAPI: %s\nWeb: %s\nNo migrations were applied.\n' "$TARGET" "$GITHUB_SHA" "$API" "$WEB" >> "$GITHUB_STEP_SUMMARY"

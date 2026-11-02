@@ -1,0 +1,58 @@
+# Independent CI topology: no external server, no reused volumes, no production configuration.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${XFOOD_CI_SQL_PASSWORD:?Only the disposable CI credential}
+    healthcheck:
+      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -b -Q "SELECT 1"']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  migrate:
+    image: xfood-migrate:ci
+    environment:
+      ConnectionStrings__XFood: Server=sqlserver;Database=${XFOOD_REAL_TEST_DATABASE:?};User ID=sa;Password=${XFOOD_CI_SQL_PASSWORD:?};Encrypt=True;TrustServerCertificate=True
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  api:
+    image: xfood-api:ci
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTPS_PORT: '443'
+      ConnectionStrings__XFood: Server=sqlserver;Database=${XFOOD_REAL_TEST_DATABASE:?};User ID=sa;Password=${XFOOD_CI_SQL_PASSWORD:?};Encrypt=True;TrustServerCertificate=True
+      Cors__PanelOrigins__0: https://localhost:3443
+      Security__ApiOrigins__0: https://localhost:3443
+      ReverseProxy__KnownProxies__0: 172.30.51.2
+      DataProtection__KeysPath: /app/keys
+    volumes: [identity_keys:/app/keys]
+
+  web:
+    image: xfood-web:ci
+    environment:
+      XFOOD_API_BASE_URL: http://api:8080/api/v1
+
+  gateway:
+    image: caddy:2.10.2-alpine
+    ports: ['127.0.0.1:3443:443']
+    volumes:
+      - ./Caddyfile.smoke:/etc/caddy/Caddyfile:ro
+    networks:
+      default:
+        ipv4_address: 172.30.51.2
+    depends_on: [api, web]
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.51.0/24
+          ip_range: 172.30.51.128/25
+volumes:
+  identity_keys:
