@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { apiGetWithHeaders, apiRequest, ApiRequestError } from "@/features/listings/api";
+import { apiGetWithHeaders, apiRequest, ApiRequestError } from "@/lib/api";
 import type { SearchOptions } from "@/features/listings/types";
 import { GEOLOCATION_OPTIONS, SEARCH_OPTIONS_PATH } from "./constants";
 import {

@@ -1,4 +1,10 @@
-import type { ApiError } from "./types";
+/** Uniform error body returned by XFood API: `{ code, message, traceId, errors? }`. */
+export type ApiError = {
+  code?: string;
+  message?: string;
+  errors?: Record<string, string[]>;
+  traceId?: string;
+};
 
 export class ApiRequestError extends Error {
   constructor(
@@ -25,6 +31,7 @@ function throwIfFailed(response: Response, payload: ApiError | undefined): void 
   }
 }
 
+/** Every call goes through the same-origin proxy in `app/api/v1/[...path]`, which forwards the HttpOnly cookie. */
 function apiUrl(path: string) {
   return `/api/v1/${path.replace(/^\//, "")}`;
 }
@@ -50,4 +57,8 @@ export async function apiGetWithHeaders<T>(path: string, signal?: AbortSignal): 
   const payload = await readPayload(response) as ApiError | undefined;
   throwIfFailed(response, payload);
   return { data: payload as T, headers: response.headers };
+}
+
+export function isApiError(error: unknown, status: number, code?: string): error is ApiRequestError {
+  return error instanceof ApiRequestError && error.status === status && (!code || error.payload.code === code);
 }

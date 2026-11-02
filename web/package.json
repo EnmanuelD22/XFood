@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:unit": "node --test tests/format.test.mjs tests/search.test.mjs",
+    "test:unit": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
