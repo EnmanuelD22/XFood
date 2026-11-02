@@ -115,7 +115,7 @@ function SearchResults({ state, onOpen, onRetry }: { state: SearchState; onOpen:
       {radiusKm === options?.radiiKm.at(-1) ? "Prueba con otro punto del mapa o vuelve más tarde." : "Prueba con un radio mayor o con otro punto del mapa."}
     </EmptyState>;
   }
-  return <div className={styles.offerList}>{visibleResults.map((listing) => <OfferCard key={listing.id} listing={listing} onOpen={onOpen} />)}</div>;
+  return <div className={styles.offerList}>{visibleResults.map((listing, index) => <OfferCard key={listing.id} listing={listing} priority={index < 2} onOpen={onOpen} />)}</div>;
 }
 
 function locationLabel(location: SearchState["location"], picking: boolean) {

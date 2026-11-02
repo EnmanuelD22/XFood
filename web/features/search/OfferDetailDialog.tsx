@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { Dialog, DialogActions, DialogBody, DialogHeader } from "@/components/ui/Dialog";
 import { Notice } from "@/components/ui/Notice";
 import { Price } from "@/components/ui/Price";
+import { CategoryImage } from "@/features/categories/CategoryImage";
 import { formatDate } from "@/lib/format";
 import { formatDistance } from "./format";
 import styles from "./search.module.css";
@@ -28,6 +29,7 @@ export function OfferDetailDialog({ listing, loading, error, unavailable, onClos
       {loading && <p className={styles.muted} role="status">Comprobando disponibilidad…</p>}
       {error && <Notice tone="error">{error}</Notice>}
       {!loading && !error && !unavailable && <div className={styles.detail}>
+        <CategoryImage className={styles.detailMedia} categoryId={listing.categoryId} categoryName={listing.categoryName} priority />
         <p className={styles.detailDescription}>{listing.description}</p>
         <section className={styles.detailSection} aria-labelledby="offer-price">
           <h3 id="offer-price">Precio y disponibilidad</h3>

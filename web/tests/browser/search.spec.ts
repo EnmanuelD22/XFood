@@ -60,6 +60,9 @@ test("granted location shows nearby offers on the map and the list with the defa
   await expect(page.getByTitle("Mercado Verde: 1 oferta")).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Radio de búsqueda" })).toHaveValue("3");
   await expect(page.getByText("OpenStreetMap")).toBeVisible();
+  const card = page.getByRole("article").filter({ hasText: sale.title });
+  await expect(card.getByText("Imagen ilustrativa de la categoría")).toBeVisible();
+  await expect(card.locator("figure img")).toHaveAttribute("src", "/images/categories/frutas-verduras.svg");
   await page.screenshot({ path: "test-results/search-desktop.png", fullPage: true, animations: "disabled" });
 });
 

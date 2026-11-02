@@ -101,6 +101,8 @@
 }
 
 .map {
+  /* Leaflet panes use high z-indexes; keep them below the sticky header. */
+  isolation: isolate;
   height: min(70vh, 640px);
   min-height: 360px;
   overflow: hidden;
@@ -208,12 +210,14 @@
 }
 
 .cardWithMedia {
-  grid-template-columns: 148px minmax(0, 1fr);
+  grid-template-columns: 188px minmax(0, 1fr);
 }
 
-.cardMedia {
+.card .cardMedia {
   align-self: stretch;
+  height: 100%;
   min-height: 100%;
+  aspect-ratio: auto;
 }
 
 .cardBody {
@@ -281,6 +285,10 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.detailMedia {
+  border-radius: var(--radius-lg);
 }
 
 .detailDescription {
@@ -369,7 +377,9 @@
     grid-template-columns: 1fr;
   }
 
-  .cardMedia {
+  .card .cardMedia {
+    height: auto;
     min-height: 0;
+    aspect-ratio: 16 / 10;
   }
 }
