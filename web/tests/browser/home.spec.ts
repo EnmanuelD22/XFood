@@ -16,6 +16,18 @@ test("the home page presents XFood with working section links", async ({ page })
   await page.screenshot({ path: "test-results/home-desktop.png", fullPage: true, animations: "disabled" });
 });
 
+test("navigating to the home page keeps the hero below the sticky header", async ({ page }) => {
+  await anonymous(page);
+  await page.goto("/login");
+  await page.getByRole("banner").getByRole("link", { name: "Inicio" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { level: 1, name: /Buena comida también puede tener/ })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  const headerBottom = await page.getByRole("banner").evaluate((header) => header.getBoundingClientRect().bottom);
+  const eyebrowTop = await page.getByText("Alimentos que merecen otra oportunidad").evaluate((text) => text.getBoundingClientRect().top);
+  expect(eyebrowTop).toBeGreaterThanOrEqual(headerBottom);
+});
+
 test("the business call to action opens the registration with the establishment role", async ({ page }) => {
   await anonymous(page);
   await page.goto("/");

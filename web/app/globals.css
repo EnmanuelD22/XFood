@@ -173,7 +173,12 @@ a {
   border: 0;
 }
 
-/* First focusable element on every page: jumps over the navigation. */
+/*
+ * First focusable element on every page: jumps over the navigation.
+ * Hidden by clipping, not by moving it above the viewport: after a client navigation
+ * Next.js scrolls the new page when its topmost box is off-screen, and an off-screen
+ * skip link would push the content under the sticky header.
+ */
 .skip-link {
   position: fixed;
   top: var(--space-3);
@@ -185,11 +190,11 @@ a {
   color: var(--color-primary);
   font-weight: 700;
   box-shadow: var(--shadow-md);
-  transform: translateY(-160%);
+  clip-path: inset(50%);
 }
 
 .skip-link:focus {
-  transform: translateY(0);
+  clip-path: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
