@@ -112,7 +112,7 @@
   box-shadow: var(--shadow-md);
 }
 
-.mapPicking {
+.mapPicking .map {
   cursor: crosshair;
 }
 

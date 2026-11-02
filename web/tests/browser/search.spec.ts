@@ -106,6 +106,19 @@ test("denied permission lets the consumer pick a point on the map", async ({ pag
   await expect(page.getByText("Buscando cerca del punto elegido en el mapa.")).toBeVisible();
 });
 
+test("the map keeps Leaflet's classes when the point arrives and picking is toggled", async ({ page }) => {
+  await stubGeolocation(page, "granted");
+  await mockApi(page);
+  await page.goto("/buscar");
+  const map = page.getByRole("region", { name: "Mapa de ofertas cercanas" });
+  await expect(page.getByTitle("Mercado Verde: 1 oferta")).toBeVisible();
+  await expect(map).toHaveClass(/leaflet-container/);
+  await page.getByRole("button", { name: "Elegir en el mapa" }).click();
+  await expect(page.getByRole("button", { name: "Cancelar selección" })).toBeVisible();
+  await expect(map).toHaveClass(/leaflet-container/);
+  await expect(map.locator("path.leaflet-interactive, svg path")).not.toHaveCount(0);
+});
+
 test("an offer that is no longer available is reported and searched again", async ({ page }) => {
   await stubGeolocation(page, "granted");
   const searches = await mockApi(page);

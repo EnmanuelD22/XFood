@@ -120,8 +120,10 @@ export function SearchMap({ point, radiusKm, groups, picking, focusedEstablishme
     }
   }, [groups, focusedEstablishmentId]);
 
-  return <div><div ref={container} className={`${searchStyles.map} ${picking || !point ? searchStyles.mapPicking : ""}`}
-    role="region" aria-label="Mapa de ofertas cercanas" />
+  // Leaflet adds its own classes to the container, so React must never re-render its className:
+  // the picking state goes on the wrapper instead.
+  return <div className={picking || !point ? searchStyles.mapPicking : undefined}>
+    <div ref={container} className={searchStyles.map} role="region" aria-label="Mapa de ofertas cercanas" />
     {(picking || !point) && <div className={searchStyles.keyboardPick}>
       <p>Puedes desplazar el mapa con las flechas del teclado y buscar desde su centro.</p>
       <Button variant="secondary" size="sm" icon="locate" onClick={() => {
