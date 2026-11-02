@@ -22,12 +22,11 @@ import type {
   VisibilityCheck,
 } from "./types";
 
-export function useEstablishmentPanel() {
+export function useEstablishmentPanel(account: Account) {
   const contextRequest = useRef<AbortController | null>(null);
   const categoryPath = process.env.NEXT_PUBLIC_XFOOD_CATEGORIES_PATH ?? "categories";
   const categoryPathReady = Boolean(categoryPath);
 
-  const [account, setAccount] = useState<Account | null>(null);
   const [establishmentId, setEstablishmentId] = useState("");
   const [timeZone, setTimeZone] = useState("America/Santo_Domingo");
   const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(
@@ -55,11 +54,11 @@ export function useEstablishmentPanel() {
   const [visibilityChecks, setVisibilityChecks] = useState<Record<string, VisibilityCheck>>({});
 
   const establishments = useMemo(
-    () => account?.establishments?.filter((item) => item.status === "Active") ?? [],
+    () => account.establishments?.filter((item) => item.status === "Active") ?? [],
     [account],
   );
   const selectedEstablishment = establishments.find((item) => item.id === establishmentId);
-  const canManage = account?.role === "Establishment" && account.status === "Active" && Boolean(selectedEstablishment) && !loading;
+  const canManage = Boolean(selectedEstablishment) && !loading;
   const visibleListings = useMemo(
     () => listings.filter((item) => {
       const matchesText = `${item.title} ${item.description}`
@@ -116,16 +115,7 @@ export function useEstablishmentPanel() {
     setLoadError("");
 
     try {
-      const currentAccount = await apiRequest<Account>("me", { signal });
-      if (signal.aborted) return;
-      setAccount(currentAccount);
-      if (currentAccount.role !== "Establishment" || currentAccount.status !== "Active") {
-        setListings([]);
-        setLoadError("Esta sección está disponible para una cuenta activa de establecimiento.");
-        return;
-      }
-
-      const activeEstablishments = (currentAccount.establishments ?? [])
+      const activeEstablishments = (account.establishments ?? [])
         .filter((item) => item.status === "Active");
       const requestedId = new URLSearchParams(window.location.search).get("establishmentId");
       const selected = activeEstablishments.find((item) => item.id === requestedId)
@@ -152,18 +142,17 @@ export function useEstablishmentPanel() {
       await loadListings(selected.id, signal);
     } catch (error) {
       if (signal.aborted) return;
-      setAccount(null);
       setListings([]);
       setCoordinates(null);
       setLoadError(
         error instanceof ApiRequestError && error.status === 401
-          ? "Inicia sesión con una cuenta de establecimiento para continuar."
+          ? "Tu sesión terminó. Vuelve a iniciar sesión."
           : (error as Error).message || "No se pudo conectar con XFood.",
       );
     } finally {
       if (!signal.aborted) setLoading(false);
     }
-  }, [loadListings, loadProfile]);
+  }, [account, loadListings, loadProfile]);
 
   useEffect(() => {
     void loadContext();
@@ -423,18 +412,8 @@ export function useEstablishmentPanel() {
     }
   }
 
-  async function logout() {
-    try {
-      await apiRequest("auth/logout", { method: "POST" });
-      window.location.reload();
-    } catch (error) {
-      setLoadError((error as Error).message || "No se pudo cerrar la sesión.");
-    }
-  }
-
   return {
     state: {
-      account,
       canManage,
       deactivating,
       deactivationBusy,
@@ -471,7 +450,6 @@ export function useEstablishmentPanel() {
       setDeactivating,
       loadContext,
       loadListings,
-      logout,
       openCreate,
       openEdit,
       saveListing,

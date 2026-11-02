@@ -4,27 +4,18 @@ import styles from "./panel.module.css";
 import { DeactivateDialog } from "./DeactivateDialog";
 import { ListingCard } from "./ListingCard";
 import { ListingFormDialog } from "./ListingFormDialog";
+import { usePanelAccount } from "@/features/panel/use-panel-account";
 import { useEstablishmentPanel } from "./use-establishment-panel";
 
 export function EstablishmentPanel() {
-  const { state, actions } = useEstablishmentPanel();
-  const { canManage, deactivating, deactivationBusy, deactivationError, account, categories, categoryLoadError, categoryPathReady, checkingVisibility, editing, establishmentId,
+  const { state, actions } = useEstablishmentPanel(usePanelAccount());
+  const { canManage, deactivating, deactivationBusy, deactivationError, categories, categoryLoadError, categoryPathReady, checkingVisibility, editing, establishmentId,
     establishments, fieldErrors, filter, form, formError, formOpen, listPathReady, listings, loadError, loading, query,
     saving, selectedEstablishment, success, timeZone, visibilityChecks, visibleListings } = state;
-  const { changeEstablishment, checkPublicVisibility, deactivateListing, requestDeactivation, setDeactivating, loadContext, loadListings, logout, openCreate, openEdit,
+  const { changeEstablishment, checkPublicVisibility, deactivateListing, requestDeactivation, setDeactivating, loadContext, loadListings, openCreate, openEdit,
     saveListing, setFilter, setForm, setFormOpen, setQuery } = actions;
 
-  return <div className={styles.shell}><a className={styles.skipLink} href="#publicaciones">Ir a publicaciones</a>
-    <aside className={styles.sidebar}>
-      <a className={styles.brand} href="#inicio" aria-label="XFood, panel del establecimiento"><span className={styles.brandMark}>✳</span><span>XFood</span></a>
-      <div className={styles.workspaceLabel}>ESPACIO DE TRABAJO</div>
-      <nav className={styles.nav} aria-label="Navegación del establecimiento"><a href="#inicio" aria-label="Inicio del panel" className={styles.navLink}><span>⌂</span> Inicio</a><a href="#publicaciones" aria-current="page" aria-label="Mis publicaciones" className={`${styles.navLink} ${styles.navActive}`}><span>▤</span> Mis publicaciones</a></nav>
-      <div className={styles.sideBottom}><div className={styles.sideHint}><span className={styles.spark}>✦</span><strong>Menos desperdicio,<br />más impacto.</strong><p>Cada excedente aprovechado cuenta.</p></div>
-        <button className={styles.profileButton} onClick={() => void logout()} title="Cerrar sesión" aria-label="Cerrar sesión"><span className={styles.avatar}>{selectedEstablishment?.name?.slice(0, 1) ?? "X"}</span><span className={styles.profileText}><strong>{selectedEstablishment?.name ?? "Establecimiento"}</strong><small>Cerrar sesión</small></span><span aria-hidden="true">↗</span></button>
-      </div>
-    </aside>
-    <main className={styles.main} id="inicio">
-      <header className={styles.topbar}><div className={styles.breadcrumb}>Panel <span>/</span> <strong>Mis publicaciones</strong></div><div className={styles.headerRight}><span className={styles.liveDot} /> Gestión del establecimiento <span className={styles.headerAvatar}>{selectedEstablishment?.name?.slice(0, 1) ?? "X"}</span></div></header>
+  return <>
       <div className={styles.content} id="publicaciones">
         <div className={styles.headingRow}><div><div className={styles.eyebrow}>TU ESPACIO DE IMPACTO</div><h1>Mis publicaciones</h1><p className={styles.subtitle}>Administra tus excedentes y ayúdalos a encontrar un nuevo destino.</p></div><button className={styles.primaryButton} onClick={openCreate} disabled={!canManage || saving || deactivationBusy}>＋ <span>Publicar excedente</span></button></div>
         {establishments.length > 1 && <label className={styles.establishmentPicker}>Establecimiento<select aria-label="Establecimiento" disabled={saving || deactivationBusy} value={establishmentId} onChange={(event) => void changeEstablishment(event.target.value)}><option value="">Selecciona el establecimiento</option>{establishments.map((item) => <option key={item.id} value={item.id}>{item.name}{item.isPrimary ? " · Principal" : ""}</option>)}</select></label>}
@@ -35,17 +26,15 @@ export function EstablishmentPanel() {
           <label className={styles.search}><span aria-hidden="true">⌕</span><input aria-label="Buscar publicaciones" placeholder="Buscar publicación..." value={query} onChange={(event) => setQuery(event.target.value)} /></label>
           <label className={styles.filter}>Estado<select aria-label="Estado" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="all">Todos</option><option>Activa</option><option>Agotada</option><option>Desactivada</option><option>Vencida</option></select></label>
         </div></div>
-        {loading ? <LoadingCards /> : establishments.length > 1 && !selectedEstablishment ? <SelectEstablishment /> : !canManage ? <div className={styles.emptyState}><h3>{account?.role === "Establishment" ? "No hay un establecimiento habilitado" : "Acceso para establecimientos"}</h3><p>Inicia sesión con una cuenta activa y un establecimiento autorizado para administrar publicaciones.</p></div> : !listPathReady ? <PendingList /> : visibleListings.length === 0 ? <EmptyState filtered={Boolean(query || filter !== "all")} hasError={Boolean(loadError)} onCreate={openCreate} onRetry={() => void loadListings(establishmentId)} /> :
+        {loading ? <LoadingCards /> : establishments.length > 1 && !selectedEstablishment ? <SelectEstablishment /> : !canManage ? <div className={styles.emptyState}><h3>No hay un establecimiento habilitado</h3><p>Tu cuenta necesita un establecimiento activo para administrar publicaciones.</p></div> : !listPathReady ? <PendingList /> : visibleListings.length === 0 ? <EmptyState filtered={Boolean(query || filter !== "all")} hasError={Boolean(loadError)} onCreate={openCreate} onRetry={() => void loadListings(establishmentId)} /> :
           <div className={styles.cardGrid}>{visibleListings.map((listing) => <ListingCard key={listing.id} listing={listing} categories={categories} timeZone={timeZone}
             visibility={visibilityChecks[listing.id]} checking={checkingVisibility === listing.id} onEdit={openEdit} onDeactivate={requestDeactivation} onCheckVisibility={checkPublicVisibility} />)}</div>}
-        <footer className={styles.footer}>XFood <span>·</span> Aprovechar mejor, juntos.</footer>
       </div>
-    </main>
     {deactivating && <DeactivateDialog title={deactivating.title} busy={deactivationBusy} error={deactivationError} onClose={() => setDeactivating(null)} onConfirm={(reason) => void deactivateListing(reason)} />}
     {formOpen && canManage && <ListingFormDialog categories={categories} categoryPathReady={categoryPathReady} categoryLoadError={categoryLoadError}
       editing={editing} errors={fieldErrors} form={form} formError={formError} saving={saving} timeZone={timeZone}
       onChange={setForm} onClose={() => setFormOpen(false)} onSubmit={saveListing} />}
-  </div>;
+  </>;
 }
 
 function PanelMetrics({ listings, listPathReady }: { listings: ReturnType<typeof useEstablishmentPanel>["state"]["listings"]; listPathReady: boolean }) {

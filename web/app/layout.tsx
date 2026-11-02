@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { SessionProvider } from "@/features/auth/SessionProvider";
 import "./globals.css";
 
 /** Self-hosted by next/font at build time (SIL Open Font License); the browser makes no request to Google. */
@@ -24,7 +25,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={jakarta.variable}>
-      <body>{children}</body>
+      <body><SessionProvider>{children}</SessionProvider></body>
     </html>
   );
 }

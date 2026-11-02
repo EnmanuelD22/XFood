@@ -36,7 +36,7 @@ async function mockApi(page: Page, signedIn = true) {
 
 test("renders API cents, filters and opens an accessible editing dialog", async ({ page }) => {
   await mockApi(page);
-  await page.goto("/");
+  await page.goto("/panel");
   await expect(page.getByRole("heading", { name: sale.title })).toBeVisible();
   await page.screenshot({ path: "test-results/panel-desktop.png", fullPage: true, animations: "disabled" });
   await expect(page.locator("article")).toContainText("129.75");
@@ -51,7 +51,7 @@ test("renders API cents, filters and opens an accessible editing dialog", async 
 
 test("creates a sale with the API contract and shows the saved result", async ({ page }) => {
   await mockApi(page);
-  await page.goto("/");
+  await page.goto("/panel");
   await page.getByRole("button", { name: "Publicar excedente" }).click();
   await page.getByLabel("Título", { exact: false }).fill("Nueva venta");
   await page.getByLabel("Descripción", { exact: false }).fill("Alimentos aptos para recoger");
@@ -75,7 +75,7 @@ test("keeps server validation errors associated with the field", async ({ page }
   await mockApi(page);
   await page.route(`**/api/v1/listings/${sale.id}`, route => route.fulfill({ status: 400,
     json: { code: "VALIDATION_ERROR", message: "Revisa el formulario", errors: { Title: ["Título rechazado por la API"] } } }));
-  await page.goto("/");
+  await page.goto("/panel");
   await page.getByRole("button", { name: "Editar", exact: true }).click();
   await page.getByRole("button", { name: "Guardar cambios" }).click();
   await expect(page.getByText("Título rechazado por la API")).toBeVisible();
@@ -85,7 +85,7 @@ test("keeps server validation errors associated with the field", async ({ page }
 
 test("deactivation requires a reason and preserves history", async ({ page }) => {
   await mockApi(page);
-  await page.goto("/");
+  await page.goto("/panel");
   await page.getByRole("button", { name: "Desactivar", exact: true }).click();
   await expect(page.getByRole("button", { name: "Confirmar desactivación" })).toBeDisabled();
   await page.getByLabel("Motivo de desactivación").fill("Retirada del lote");
@@ -94,12 +94,20 @@ test("deactivation requires a reason and preserves history", async ({ page }) =>
   await expect(page.locator("article")).toContainText("Desactivada");
 });
 
-test("session is required to create and no misleading empty CTA is shown", async ({ page }) => {
+test("without a session the panel sends the person to the login with the requested page", async ({ page }) => {
   await mockApi(page, false);
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Acceso para establecimientos" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Publicar excedente" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Crear primera publicación" })).toHaveCount(0);
+  await page.goto("/panel?establishmentId=abc");
+  await expect(page).toHaveURL(/\/login\?next=%2Fpanel%3FestablishmentId%3Dabc$/);
+  await expect(page.getByRole("button", { name: "Publicar excedente" })).toHaveCount(0);
+});
+
+test("other roles see an access message instead of the panel", async ({ page }) => {
+  await mockApi(page);
+  await page.route("**/api/v1/me", route => route.fulfill({ json: { role: "Consumer", status: "Active", establishments: null } }));
+  await page.goto("/panel");
+  await expect(page.getByRole("heading", { name: "No tienes acceso a esta sección" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Ir a mi inicio" })).toHaveAttribute("href", "/buscar");
+  await expect(page.getByRole("button", { name: "Publicar excedente" })).toHaveCount(0);
 });
 
 test("switching establishment ignores a late response from the previous selection", async ({ page }) => {
@@ -121,7 +129,7 @@ test("switching establishment ignores a late response from the previous selectio
     { ...sale, establishmentId: secondId, title: "Oferta del segundo local" },
   ] }));
   const firstProfile = page.waitForRequest(req => req.url().endsWith(`/establishments/${establishmentId}`));
-  await page.goto("/");
+  await page.goto("/panel");
   await firstProfile;
   await page.getByLabel("Establecimiento", { exact: true }).selectOption(secondId);
   await expect(page.getByRole("heading", { name: "Oferta del segundo local" })).toBeVisible();
@@ -134,7 +142,7 @@ test("mobile layout supports reduced motion, focus containment and Escape", asyn
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await mockApi(page);
-  await page.goto("/");
+  await page.goto("/panel");
   const trigger = page.getByRole("button", { name: "Publicar excedente" });
   await expect(page.getByRole("heading", { name: sale.title })).toBeVisible();
   await page.screenshot({ path: "test-results/panel-mobile.png", fullPage: true, animations: "disabled" });
