@@ -139,3 +139,80 @@ test("loads the next page and skips offers that were already shown", async ({ pa
   await expect(page.getByRole("button", { name: /^Ver detalle de/ })).toHaveCount(2);
   await expect(page.getByRole("button", { name: "Cargar más ofertas" })).toHaveCount(0);
 });
+
+
+test("manual location can be selected using only keyboard controls", async ({ page }) => {
+  await stubGeolocation(page, "denied");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const searches = await mockApi(page);
+  await page.goto("/buscar");
+  const map = page.getByRole("region", { name: "Mapa de ofertas cercanas" });
+  await map.focus();
+  await page.keyboard.press("ArrowRight");
+  const choose = page.getByRole("button", { name: "Buscar desde el centro del mapa" });
+  await choose.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: sale.title })).toBeVisible();
+  expect(searches).toHaveLength(1);
+  expect(Number(searches[0].get("longitude"))).toBeGreaterThanOrEqual(-180);
+  expect(Number(searches[0].get("longitude"))).toBeLessThanOrEqual(180);
+});
+
+test("a late GPS response cannot replace a manually selected point", async ({ page }) => {
+  await page.addInitScript(point => {
+    let calls = 0;
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: {
+      getCurrentPosition(success: PositionCallback) {
+        calls += 1;
+        setTimeout(() => success({ coords: { ...point, accuracy: 10 } } as GeolocationPosition), calls === 1 ? 0 : 1000);
+      },
+    } });
+  }, consumer);
+  await mockApi(page);
+  await page.goto("/buscar");
+  await expect(page.getByRole("heading", { name: sale.title })).toBeVisible();
+  await page.getByRole("button", { name: "Usar mi ubicación" }).click();
+  await page.getByRole("button", { name: "Elegir en el mapa" }).click();
+  await page.getByRole("button", { name: "Buscar desde el centro del mapa" }).click();
+  await page.waitForTimeout(1200); // La respuesta GPS debe llegar después de la elección manual.
+  await expect(page.getByText("Buscando cerca del punto elegido en el mapa.")).toBeVisible();
+});
+
+test("a failed detail request does not present cached stock as confirmed", async ({ page }) => {
+  await stubGeolocation(page, "granted");
+  await mockApi(page);
+  await page.route((url) => url.pathname.endsWith(`/api/v1/listings/${sale.id}`), route => route.fulfill({
+    status: 503, json: { code: "API_UNAVAILABLE", message: "No se pudo comprobar la oferta" },
+  }));
+  await page.goto("/buscar");
+  await page.getByRole("button", { name: `Ver detalle de ${sale.title}` }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("alert")).toContainText("No se pudo comprobar");
+  await expect(dialog.getByText("5 unidades disponibles")).toHaveCount(0);
+});
+
+
+test("changing radius cancels a pending next page and keeps the mobile results consistent", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await stubGeolocation(page, "granted");
+  await mockApi(page, async (params, route) => {
+    if (params.get("page") === "2") {
+      await new Promise(resolve => setTimeout(resolve, 700));
+      return route.fulfill({ json: [secondSale], headers: { "X-Has-Next-Page": "false" } });
+    }
+    const newRadius = params.get("radiusKm") === "5";
+    return route.fulfill({ json: newRadius ? [{ ...sale, title: "Oferta del radio nuevo" }] : [sale],
+      headers: { "X-Has-Next-Page": newRadius ? "false" : "true" } });
+  });
+  await page.goto("/buscar");
+  const pending = page.waitForRequest(req => new URL(req.url()).searchParams.get("page") === "2");
+  await page.getByRole("button", { name: "Cargar más ofertas" }).click();
+  const request = await pending;
+  const cancelled = page.waitForEvent("requestfailed", { predicate: item => item === request });
+  await page.getByRole("combobox", { name: "Radio de búsqueda" }).selectOption("5");
+  await cancelled;
+  await expect(page.getByRole("heading", { name: "Oferta del radio nuevo" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: secondSale.title })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/search-mobile.png", fullPage: true, animations: "disabled" });
+});

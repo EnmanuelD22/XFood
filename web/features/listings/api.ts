@@ -41,10 +41,11 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   return payload as T;
 }
 
-export async function apiGetWithHeaders<T>(path: string): Promise<{ data: T; headers: Headers }> {
+export async function apiGetWithHeaders<T>(path: string, signal?: AbortSignal): Promise<{ data: T; headers: Headers }> {
   const response = await fetch(apiUrl(path), {
     credentials: "same-origin",
     cache: "no-store",
+    signal,
   });
   const payload = await readPayload(response) as ApiError | undefined;
   throwIfFailed(response, payload);

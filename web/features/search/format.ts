@@ -33,13 +33,9 @@ export function hasNextPage(headers: Headers) {
 
 /** Offers can change between pages, so a later page may repeat an id already shown. */
 export function mergeById(current: ListingSummary[], incoming: ListingSummary[]) {
-  const seen = new Set(current.map((item) => item.id));
-  const added = incoming.filter((item) => {
-    if (seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
-  return [...current, ...added];
+  const merged = new Map(current.map((item) => [item.id, item]));
+  for (const item of incoming) merged.set(item.id, item);
+  return [...merged.values()];
 }
 
 export function groupByEstablishment(listings: ListingSummary[]): EstablishmentGroup[] {

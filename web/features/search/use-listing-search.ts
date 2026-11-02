@@ -38,8 +38,8 @@ function getDevicePosition() {
   });
 }
 
-async function fetchPage(point: GeoPoint, radiusKm: number, page: number, pageSize: number) {
-  const { data, headers } = await apiGetWithHeaders<ListingSummary[]>(buildSearchPath(point, radiusKm, page, pageSize));
+async function fetchPage(point: GeoPoint, radiusKm: number, page: number, pageSize: number, signal: AbortSignal) {
+  const { data, headers } = await apiGetWithHeaders<ListingSummary[]>(buildSearchPath(point, radiusKm, page, pageSize), signal);
   return { data, hasMore: hasNextPage(headers) };
 }
 
@@ -53,6 +53,7 @@ function searchErrorMessage(error: unknown) {
 export function useListingSearch() {
   const moreRequest = useRef<AbortController | null>(null);
   const detailRequest = useRef<AbortController | null>(null);
+  const locationVersion = useRef(0);
 
   const [options, setOptions] = useState<SearchOptions | null>(null);
   const [optionsError, setOptionsError] = useState("");
@@ -97,8 +98,9 @@ export function useListingSearch() {
 
   useEffect(() => {
     let active = true;
+    const version = locationVersion.current;
     void getDevicePosition().then((position) => {
-      if (!active) return;
+      if (!active || version !== locationVersion.current) return;
       if (position.ok) {
         setLocation((previous) => previous.kind === "ready" && previous.source === "manual"
           ? previous
@@ -114,7 +116,7 @@ export function useListingSearch() {
   useEffect(() => {
     if (!queryKey || !point || !radiusKm || !pageSize) return;
     const controller = new AbortController();
-    fetchPage(point, radiusKm, FIRST_PAGE, pageSize)
+    fetchPage(point, radiusKm, FIRST_PAGE, pageSize, controller.signal)
       .then((page) => {
         if (controller.signal.aborted) return;
         setOutcome({ key: queryKey, results: mergeById([], page.data), page: FIRST_PAGE, hasMore: page.hasMore, error: "" });
@@ -132,10 +134,13 @@ export function useListingSearch() {
   }, []);
 
   async function locate() {
+    const version = ++locationVersion.current;
     setLocationNotice("");
     setLocation((previous) => previous.kind === "ready" ? previous : { kind: "locating" });
     const position = await getDevicePosition();
+    if (version !== locationVersion.current) return;
     if (position.ok) {
+      cancelMore();
       setPicking(false);
       setLocation({ kind: "ready", source: "device", point: position.point });
       return;
@@ -146,16 +151,28 @@ export function useListingSearch() {
   }
 
   function pickPoint(target: GeoPoint) {
+    ++locationVersion.current;
+    cancelMore();
     setPicking(false);
     setLocationNotice("");
     setLocation({ kind: "ready", source: "manual", point: target });
   }
 
   function changeRadius(value: number) {
-    if (options?.radiiKm.includes(value)) setSelectedRadiusKm(value);
+    if (options?.radiiKm.includes(value)) {
+      cancelMore();
+      setSelectedRadiusKm(value);
+    }
+  }
+
+  function cancelMore() {
+    moreRequest.current?.abort();
+    setLoadingMore(false);
+    setMoreError(null);
   }
 
   function refresh() {
+    cancelMore();
     if (!options) {
       setOptionsError("");
       setOptionsAttempt((value) => value + 1);
@@ -175,7 +192,7 @@ export function useListingSearch() {
     setMoreError(null);
 
     try {
-      const page = await fetchPage(point, radiusKm, nextPage, pageSize);
+      const page = await fetchPage(point, radiusKm, nextPage, pageSize, controller.signal);
       if (controller.signal.aborted) return;
       setOutcome((previous) => previous?.key === key
         ? { ...previous, results: mergeById(previous.results, page.data), page: nextPage, hasMore: page.hasMore }

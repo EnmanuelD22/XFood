@@ -26,7 +26,7 @@ export function OfferDetailDialog({ listing, loading, error, unavailable, onClos
       <button className={styles.closeButton} onClick={onClose} aria-label="Cerrar">×</button></header>
     {loading && <p className={searchStyles.statusLine} role="status">Comprobando disponibilidad…</p>}
     {error && <div className={styles.noticeError} role="alert"><span>!</span><div>{error}</div></div>}
-    {!unavailable && <div className={searchStyles.detail}>
+    {!loading && !error && !unavailable && <div className={searchStyles.detail}>
       <p className={searchStyles.detailDescription}>{listing.description}</p>
       <section aria-labelledby="offer-establishment"><h3 id="offer-establishment">Establecimiento</h3>
         <p><strong>{establishment.name}</strong><br />{establishment.address}{distance && <><br />A {distance} del punto de búsqueda</>}</p></section>

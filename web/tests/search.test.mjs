@@ -62,3 +62,10 @@ test("a new attempt or radius changes the search key", () => {
   assert.notEqual(searchKey(point, 3, 0), searchKey(point, 5, 0));
   assert.notEqual(searchKey(point, 3, 0), searchKey(point, 3, 1));
 });
+
+
+test("duplicate offers keep their position and use the newest server data", () => {
+  const merged = mergeById([{ ...offer("a"), availableQuantity: 5 }, offer("b")], [{ ...offer("a"), availableQuantity: 1 }]);
+  assert.deepEqual(merged.map(item => item.id), ["a", "b"]);
+  assert.equal(merged[0].availableQuantity, 1);
+});

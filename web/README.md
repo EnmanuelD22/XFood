@@ -64,3 +64,14 @@ Las pruebas de navegador levantan Next.js en el puerto 3100 y simulan respuestas
 Las rutas de publicaciones y categorías tienen los valores del contrato como predeterminados; las variables de entorno permiten sustituirlos. El panel descarta consultas anteriores al cambiar de establecimiento y bloquea el cambio mientras guarda. No suma unidades vencidas, desactivadas o no aptas al indicador de unidades disponibles. Los formularios usan diálogos modales nativos para contener y devolver el foco.
 
 La conexión HTTPS entre Next.js y .NET requiere que Node confíe en la CA del certificado de la API. Si tu entorno necesita una CA de desarrollo adicional, configura `NODE_EXTRA_CA_CERTS` con su archivo público antes de iniciar Next.js. Coordina también el origen HTTPS del panel con el backend; evita desactivar la validación TLS.
+
+
+## Ajustes de revisión de HU-02
+
+La selección manual también se puede confirmar con «Buscar desde el centro del mapa» después de moverlo con las flechas. Las longitudes elegidas se normalizan al intervalo geográfico válido. No se usa geocodificación por dirección.
+
+Cambiar de punto o radio cancela las peticiones anteriores, incluida la página siguiente; una respuesta GPS tardía no reemplaza una selección manual. «Actualizar ofertas» vuelve a consultar disponibilidad. Si un id aparece en páginas distintas, se mantiene su posición y se actualiza con la respuesta más reciente. El detalle solo presenta precios y stock tras confirmar su consulta; una falla no convierte datos previos en disponibilidad confirmada.
+
+La paginación sigue disponible al enfocar un establecimiento para poder cargar sus ofertas restantes. Los marcadores cuentan únicamente las ofertas cargadas, no un total global. El mapa evita animaciones de zoom y desplazamiento; los componentes compartidos mantienen la preferencia de movimiento reducido.
+
+Antes del piloto, el equipo debe confirmar el proveedor de teselas y sus condiciones. Las pruebas de navegador bloquean las teselas externas y usan respuestas controladas; no demuestran la disponibilidad del proveedor ni una integración completa con datos reales de HU-01.

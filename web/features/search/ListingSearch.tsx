@@ -23,7 +23,7 @@ export function ListingSearch() {
 
   return <div className={searchStyles.page}><a className={styles.skipLink} href="#resultados">Ir a resultados</a>
     <header className={searchStyles.header}>
-      <span className={styles.brand}><span className={styles.brandMark} aria-hidden="true">✳</span><span>XFood</span></span>
+      <span className={`${styles.brand} ${searchStyles.brand}`}><span className={styles.brandMark} aria-hidden="true">✳</span><span>XFood</span></span>
       <span className={searchStyles.headerNote}>Ofertas de alimentos a precio reducido</span>
     </header>
     <main className={styles.content}>
@@ -41,6 +41,7 @@ export function ListingSearch() {
           <button className={styles.secondaryButton} onClick={() => void locate()} disabled={location.kind === "locating"}>Usar mi ubicación</button>
           <button className={styles.secondaryButton} onClick={() => setPicking(!picking)} aria-pressed={picking}>
             {picking ? "Cancelar selección" : "Elegir en el mapa"}</button>
+          <button className={styles.secondaryButton} onClick={refresh} disabled={!point || !options || status === "loading"}>Actualizar ofertas</button>
         </div>
       </div>
 
@@ -61,7 +62,7 @@ export function ListingSearch() {
             <button onClick={clearFocus}>Ver todas</button></div>}
           <SearchResults state={state} onOpen={(listing) => void openDetail(listing)} onRetry={refresh} />
           {moreError && status === "ready" && <div className={styles.noticeError} role="alert"><span>!</span><div>{moreError}<button onClick={() => void loadMore()}>Volver a intentar</button></div></div>}
-          {status === "ready" && hasMore && !focusedGroup && <button className={`${styles.secondaryButton} ${searchStyles.loadMore}`} onClick={() => void loadMore()} disabled={loadingMore}>
+          {status === "ready" && hasMore && <button className={`${styles.secondaryButton} ${searchStyles.loadMore}`} onClick={() => void loadMore()} disabled={loadingMore}>
             {loadingMore ? "Cargando…" : "Cargar más ofertas"}</button>}
           {visibleResults.length > 0 && <p className={searchStyles.statusLine}>Mostrando {offerCountLabel(visibleResults.length)}.</p>}
         </section>

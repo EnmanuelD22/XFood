@@ -52,12 +52,16 @@ export function SearchMap({ point, radiusKm, groups, picking, focusedEstablishme
     const instance = L.map(container.current!, {
       center: [DEFAULT_MAP_CENTER.latitude, DEFAULT_MAP_CENTER.longitude],
       zoom: DEFAULT_MAP_ZOOM,
+      zoomAnimation: false,
+      fadeAnimation: false,
+      markerZoomAnimation: false,
     });
     L.tileLayer(MAP_TILE_URL, { attribution: MAP_ATTRIBUTION, maxZoom: MAX_MAP_ZOOM }).addTo(instance);
     areaLayer.current = L.layerGroup().addTo(instance);
     offersLayer.current = L.layerGroup().addTo(instance);
     instance.on("click", (event) => {
-      if (latest.current.canPick) latest.current.onPick({ latitude: event.latlng.lat, longitude: event.latlng.lng });
+      const target = event.latlng.wrap();
+      if (latest.current.canPick) latest.current.onPick({ latitude: target.lat, longitude: target.lng });
     });
     map.current = instance;
 
@@ -82,12 +86,12 @@ export function SearchMap({ point, radiusKm, groups, picking, focusedEstablishme
       interactive: false,
     }).addTo(layer);
     if (!radiusKm) {
-      instance.setView(center, DEFAULT_MAP_ZOOM);
+      instance.setView(center, DEFAULT_MAP_ZOOM, { animate: false });
       return;
     }
 
     const area = L.circle(center, { ...RADIUS_STYLE, radius: radiusKm * METERS_PER_KM, interactive: false }).addTo(layer);
-    instance.fitBounds(area.getBounds(), { padding: [MAP_FIT_PADDING, MAP_FIT_PADDING] });
+    instance.fitBounds(area.getBounds(), { padding: [MAP_FIT_PADDING, MAP_FIT_PADDING], animate: false });
   }, [point, radiusKm]);
 
   useEffect(() => {
@@ -115,6 +119,14 @@ export function SearchMap({ point, radiusKm, groups, picking, focusedEstablishme
     }
   }, [groups, focusedEstablishmentId]);
 
-  return <div ref={container} className={`${searchStyles.map} ${picking || !point ? searchStyles.mapPicking : ""}`}
-    role="region" aria-label="Mapa de ofertas cercanas" />;
+  return <div><div ref={container} className={`${searchStyles.map} ${picking || !point ? searchStyles.mapPicking : ""}`}
+    role="region" aria-label="Mapa de ofertas cercanas" />
+    {(picking || !point) && <div className={searchStyles.keyboardPick}>
+      <p>Puedes desplazar el mapa con las flechas del teclado y buscar desde su centro.</p>
+      <button type="button" onClick={() => {
+        const center = map.current?.getCenter().wrap();
+        if (center) onPick({ latitude: center.lat, longitude: center.lng });
+      }}>Buscar desde el centro del mapa</button>
+    </div>}
+  </div>;
 }
