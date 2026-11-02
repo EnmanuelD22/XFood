@@ -1,0 +1,375 @@
+/* Public offer search (HU-02). Shared pieces come from components/ui; this module only lays out the page and the map. */
+.content {
+  width: min(var(--content-width), 100%);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) var(--space-7);
+}
+
+.hero {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 720px;
+  animation: enter var(--duration-slow) var(--ease-out) both;
+}
+
+.eyebrow {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-success);
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+}
+
+.subtitle {
+  color: var(--color-muted);
+  font-size: var(--text-md);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.location {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-size);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.locationIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-sage-soft);
+  color: var(--color-primary);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.radius {
+  width: 180px;
+}
+
+.radius select {
+  min-height: var(--tap-size);
+  padding-block: var(--space-2);
+}
+
+.notices {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+  margin-top: var(--space-5);
+}
+
+.mapPanel {
+  position: sticky;
+  top: calc(var(--space-4) + 72px);
+  z-index: 0;
+}
+
+.map {
+  height: min(70vh, 640px);
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sage);
+  box-shadow: var(--shadow-md);
+}
+
+.mapPicking {
+  cursor: crosshair;
+}
+
+.mapLoading {
+  display: grid;
+  place-items: center;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.mapHint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  color: var(--color-primary);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.keyboardPick {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.resultsHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.resultsTitle {
+  font-size: var(--text-lg);
+  font-weight: 800;
+}
+
+.resultsCaption {
+  margin-top: var(--space-1);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.offerList {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.focusChip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: var(--text-sm);
+}
+
+.loadMore {
+  margin-top: var(--space-4);
+}
+
+.statusLine {
+  margin-top: var(--space-3);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* Offer card */
+.card {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  animation: enter var(--duration-slow) var(--ease-out) both;
+  transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+}
+
+.card:hover,
+.card:focus-within {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.cardWithMedia {
+  grid-template-columns: 148px minmax(0, 1fr);
+}
+
+.cardMedia {
+  align-self: stretch;
+  min-height: 100%;
+}
+
+.cardBody {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.cardMeta {
+  color: var(--color-success);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cardTitle {
+  font-size: var(--text-md);
+  font-weight: 800;
+}
+
+.establishmentName {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cardActions {
+  margin-top: var(--space-1);
+}
+
+/* Detail dialog */
+.detail {
+  display: grid;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.detailSection {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.detailSection h3 {
+  color: var(--color-success);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.detailDescription {
+  color: var(--color-muted);
+  font-size: var(--text-base);
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+/* Leaflet markers: Leaflet renders them outside React, so they are styled through the map container. */
+.map :global(.leaflet-container) {
+  font-family: var(--font-sans);
+}
+
+.map .userMarker {
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #2f6fed;
+  box-shadow: 0 0 0 4px rgb(47 111 237 / 25%);
+}
+
+.map .offerMarker {
+  display: grid;
+  place-items: center;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgb(16 54 37 / 30%);
+}
+
+.map .offerMarkerFocused {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mapPanel {
+    position: static;
+  }
+
+  .map {
+    height: 420px;
+  }
+}
+
+@media (max-width: 720px) {
+  .content {
+    padding: var(--space-5) var(--space-4) var(--space-6);
+  }
+
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .controls > * {
+    flex: 1 1 100%;
+  }
+
+  .radius {
+    width: 100%;
+  }
+
+  .map {
+    height: 340px;
+    min-height: 300px;
+  }
+
+  .cardWithMedia {
+    grid-template-columns: 1fr;
+  }
+
+  .cardMedia {
+    min-height: 0;
+  }
+}

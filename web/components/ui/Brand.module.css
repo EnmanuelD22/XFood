@@ -1,0 +1,47 @@
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+}
+
+.dark {
+  --brand-vein: var(--color-background);
+  color: var(--color-primary);
+}
+
+.dark .name {
+  color: var(--color-primary-dark);
+}
+
+.light {
+  --brand-vein: var(--color-primary-dark);
+  color: var(--color-accent);
+}
+
+.light .name {
+  color: #fff;
+}
+
+.mark {
+  flex: none;
+}
+
+.text {
+  display: grid;
+}
+
+.name {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.tagline {
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  color: var(--color-on-dark-muted);
+}

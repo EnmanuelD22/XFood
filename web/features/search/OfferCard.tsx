@@ -1,7 +1,9 @@
-import styles from "@/app/page.module.css";
-import searchStyles from "@/app/buscar/page.module.css";
-import { formatDate, formatMoney } from "@/features/listings/format";
-import { discountPercent, formatDistance } from "./format";
+import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
+import { Price } from "@/components/ui/Price";
+import { formatDate } from "@/lib/format";
+import { formatDistance } from "./format";
+import styles from "./search.module.css";
 import type { ListingSummary } from "./types";
 
 type Props = {
@@ -11,25 +13,22 @@ type Props = {
 
 export function OfferCard({ listing, onOpen }: Props) {
   const { establishment } = listing;
-  const discount = discountPercent(listing.originalUnitPrice, listing.discountedUnitPrice);
   const distance = formatDistance(listing.distanceKm);
 
-  return <article className={`${styles.listingCard} ${searchStyles.offerCard}`}>
-    <div className={styles.listingBody}>
-      <span className={searchStyles.offerMeta}>{listing.categoryName}{distance && ` · a ${distance}`}</span>
-      <div className={styles.listingTop}><h3>{listing.title}</h3></div>
-      <p className={searchStyles.establishmentName}>{establishment.name}</p>
-      <div className={styles.priceLine}>
-        <strong>{formatMoney(listing.discountedUnitPrice)}</strong><del>{formatMoney(listing.originalUnitPrice)}</del>
-        {discount !== null && <span className={styles.discount}>{discount}% menos</span>}
-      </div>
-      <div className={styles.cardDetails}>
-        <span>▦ <b>{listing.availableQuantity}</b> disponibles</span>
-        <span>◷ Recogida desde {formatDate(listing.pickupStartsAtUtc, establishment.timeZoneId)}</span>
-        <span>Hasta {formatDate(listing.pickupDeadlineUtc, establishment.timeZoneId)}</span>
-      </div>
+  return <article className={styles.card}>
+    <div className={styles.cardBody}>
+      <p className={styles.cardMeta}>{listing.categoryName}{distance && ` · a ${distance}`}</p>
+      <h3 className={styles.cardTitle}>{listing.title}</h3>
+      <p className={styles.establishmentName}>{establishment.name}</p>
+      <Price original={listing.originalUnitPrice} discounted={listing.discountedUnitPrice} />
+      <ul className={styles.facts}>
+        <li><Icon name="box" size={16} />{listing.availableQuantity} disponibles</li>
+        <li><Icon name="clock" size={16} />Hasta {formatDate(listing.pickupDeadlineUtc, establishment.timeZoneId)}</li>
+      </ul>
       <div className={styles.cardActions}>
-        <button className={styles.editButton} onClick={() => onOpen(listing)} aria-label={`Ver detalle de ${listing.title}`}>Ver detalle</button>
+        <Button variant="secondary" size="sm" iconEnd="arrowRight" onClick={() => onOpen(listing)} aria-label={`Ver detalle de ${listing.title}`}>
+          Ver detalle
+        </Button>
       </div>
     </div>
   </article>;

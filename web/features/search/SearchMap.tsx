@@ -3,7 +3,8 @@
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import searchStyles from "@/app/buscar/page.module.css";
+import { Button } from "@/components/ui/Button";
+import searchStyles from "./search.module.css";
 import {
   DEFAULT_MAP_CENTER,
   DEFAULT_MAP_ZOOM,
@@ -123,10 +124,10 @@ export function SearchMap({ point, radiusKm, groups, picking, focusedEstablishme
     role="region" aria-label="Mapa de ofertas cercanas" />
     {(picking || !point) && <div className={searchStyles.keyboardPick}>
       <p>Puedes desplazar el mapa con las flechas del teclado y buscar desde su centro.</p>
-      <button type="button" onClick={() => {
+      <Button variant="secondary" size="sm" icon="locate" onClick={() => {
         const center = map.current?.getCenter().wrap();
         if (center) onPick({ latitude: center.lat, longitude: center.lng });
-      }}>Buscar desde el centro del mapa</button>
+      }}>Buscar desde el centro del mapa</Button>
     </div>}
   </div>;
 }

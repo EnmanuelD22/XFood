@@ -1,6 +1,6 @@
 "use client";
 
-import styles from "@/app/page.module.css";
+import styles from "./panel.module.css";
 import { DeactivateDialog } from "./DeactivateDialog";
 import { ListingCard } from "./ListingCard";
 import { ListingFormDialog } from "./ListingFormDialog";

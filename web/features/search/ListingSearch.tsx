@@ -1,17 +1,23 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import styles from "@/app/page.module.css";
-import searchStyles from "@/app/buscar/page.module.css";
+import { PublicHeader } from "@/components/layout/PublicHeader";
+import { Button, ButtonLink } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { SelectField } from "@/components/ui/Field";
+import { Icon } from "@/components/ui/Icon";
+import { Notice } from "@/components/ui/Notice";
+import { SkeletonCards } from "@/components/ui/Skeleton";
 import { OfferCard } from "./OfferCard";
 import { OfferDetailDialog } from "./OfferDetailDialog";
 import { offerCountLabel } from "./format";
+import styles from "./search.module.css";
 import { useListingSearch } from "./use-listing-search";
 
 /** Leaflet needs `window`, so the map renders only in the browser. */
 const SearchMap = dynamic(() => import("./SearchMap").then((module) => module.SearchMap), {
   ssr: false,
-  loading: () => <div className={`${searchStyles.map} ${searchStyles.mapLoading}`} role="status">Cargando mapa…</div>,
+  loading: () => <div className={`${styles.map} ${styles.mapLoading}`} role="status">Cargando mapa…</div>,
 });
 
 export function ListingSearch() {
@@ -21,84 +27,95 @@ export function ListingSearch() {
   const { changeRadius, clearFocus, closeDetail, focusEstablishment, loadMore, locate, openDetail, pickPoint, refresh,
     setPicking } = actions;
 
-  return <div className={searchStyles.page}><a className={styles.skipLink} href="#resultados">Ir a resultados</a>
-    <header className={searchStyles.header}>
-      <span className={`${styles.brand} ${searchStyles.brand}`}><span className={styles.brandMark} aria-hidden="true">✳</span><span>XFood</span></span>
-      <span className={searchStyles.headerNote}>Ofertas de alimentos a precio reducido</span>
-    </header>
+  return <>
+    <a className="skip-link" href="#resultados">Ir a resultados</a>
+    <PublicHeader current="/buscar" actions={<ButtonLink href="/login" variant="soft" size="sm">Iniciar sesión</ButtonLink>} />
     <main className={styles.content}>
-      <div className={styles.headingRow}><div><div className={styles.eyebrow}>COMIDA A BAJO COSTO</div><h1>Ofertas cerca de ti</h1>
-        <p className={styles.subtitle}>Encuentra excedentes de alimentos disponibles a precio reducido y sus condiciones de recogida.</p></div></div>
+      <div className={styles.hero}>
+        <p className={styles.eyebrow}>Comida a bajo costo</p>
+        <h1 className={styles.title}>Ofertas cerca de ti</h1>
+        <p className={styles.subtitle}>Encuentra excedentes de alimentos disponibles a precio reducido y sus condiciones de recogida.</p>
+      </div>
 
-      <div className={searchStyles.toolbar}>
-        <p className={searchStyles.locationLabel} role="status">{locationLabel(location, picking)}</p>
+      <div className={styles.toolbar}>
+        <p className={styles.location} role="status">
+          <span className={styles.locationIcon}><Icon name="mapPin" /></span>{locationLabel(location, picking)}
+        </p>
         <div className={styles.controls}>
-          <label className={styles.filter}>Radio<select aria-label="Radio de búsqueda" value={radiusKm ?? ""} disabled={!options}
+          <SelectField label="Radio de búsqueda" className={styles.radius} value={radiusKm ?? ""} disabled={!options}
             onChange={(event) => changeRadius(Number(event.target.value))}>
             {!options && <option value="">—</option>}
             {options?.radiiKm.map((value) => <option key={value} value={value}>{value} km</option>)}
-          </select></label>
-          <button className={styles.secondaryButton} onClick={() => void locate()} disabled={location.kind === "locating"}>Usar mi ubicación</button>
-          <button className={styles.secondaryButton} onClick={() => setPicking(!picking)} aria-pressed={picking}>
-            {picking ? "Cancelar selección" : "Elegir en el mapa"}</button>
-          <button className={styles.secondaryButton} onClick={refresh} disabled={!point || !options || status === "loading"}>Actualizar ofertas</button>
+          </SelectField>
+          <Button variant="secondary" icon="locate" onClick={() => void locate()} disabled={location.kind === "locating"}>Usar mi ubicación</Button>
+          <Button variant="secondary" icon="map" onClick={() => setPicking(!picking)} aria-pressed={picking}>
+            {picking ? "Cancelar selección" : "Elegir en el mapa"}
+          </Button>
+          <Button icon="refresh" onClick={refresh} disabled={!point || !options || status === "loading"}>Actualizar ofertas</Button>
         </div>
       </div>
 
-      {optionsError && <div className={styles.noticeError} role="alert"><span>!</span><div>No se pudo cargar la configuración de búsqueda: {optionsError}<button onClick={refresh}>Volver a intentar</button></div></div>}
-      {locationNotice && location.kind === "ready" && <div className={styles.noticeWarning} role="status">{locationNotice}</div>}
+      {(optionsError || (locationNotice && location.kind === "ready")) && <div className={styles.notices}>
+        {optionsError && <Notice tone="error" action={{ label: "Volver a intentar", onClick: refresh }}>
+          No se pudo cargar la configuración de búsqueda: {optionsError}
+        </Notice>}
+        {locationNotice && location.kind === "ready" && <Notice tone="warning">{locationNotice}</Notice>}
+      </div>}
 
-      <div className={searchStyles.layout}>
-        <section className={searchStyles.mapPanel} aria-label="Mapa">
+      <div className={styles.layout}>
+        <section className={styles.mapPanel} aria-label="Mapa">
           <SearchMap point={point} radiusKm={radiusKm} groups={groups} picking={picking}
             focusedEstablishmentId={focusedGroup?.establishment.id ?? ""} onPick={pickPoint} onSelectEstablishment={focusEstablishment} />
-          {(picking || location.kind === "manual") && <p className={searchStyles.mapHint}>Toca el mapa para elegir el punto de búsqueda.</p>}
+          {(picking || location.kind === "manual") && <p className={styles.mapHint}><Icon name="locate" size={18} />Toca el mapa para elegir el punto de búsqueda.</p>}
         </section>
 
-        <section className={searchStyles.results} id="resultados" aria-labelledby="results-title" aria-busy={status === "loading"}>
-          <div className={styles.listHeader}><div><h2 id="results-title">{resultsTitle(status, results.length, hasMore)}</h2>
-            <p>{radiusKm ? `Dentro de ${radiusKm} km del punto de búsqueda` : "Elige una ubicación para buscar"}</p></div></div>
-          {focusedGroup && <div className={searchStyles.focusChip}><span>Ofertas de <strong>{focusedGroup.establishment.name}</strong></span>
-            <button onClick={clearFocus}>Ver todas</button></div>}
+        <section id="resultados" aria-labelledby="results-title" aria-busy={status === "loading"}>
+          <div className={styles.resultsHeader}>
+            <div>
+              <h2 id="results-title" className={styles.resultsTitle}>{resultsTitle(status, results.length, hasMore)}</h2>
+              <p className={styles.resultsCaption}>{radiusKm ? `Dentro de ${radiusKm} km del punto de búsqueda` : "Elige una ubicación para buscar"}</p>
+            </div>
+          </div>
+          {focusedGroup && <div className={styles.focusChip}>
+            <span>Ofertas de <strong>{focusedGroup.establishment.name}</strong></span>
+            <Button variant="ghost" size="sm" onClick={clearFocus}>Ver todas</Button>
+          </div>}
           <SearchResults state={state} onOpen={(listing) => void openDetail(listing)} onRetry={refresh} />
-          {moreError && status === "ready" && <div className={styles.noticeError} role="alert"><span>!</span><div>{moreError}<button onClick={() => void loadMore()}>Volver a intentar</button></div></div>}
-          {status === "ready" && hasMore && <button className={`${styles.secondaryButton} ${searchStyles.loadMore}`} onClick={() => void loadMore()} disabled={loadingMore}>
-            {loadingMore ? "Cargando…" : "Cargar más ofertas"}</button>}
-          {visibleResults.length > 0 && <p className={searchStyles.statusLine}>Mostrando {offerCountLabel(visibleResults.length)}.</p>}
+          {moreError && status === "ready" && <Notice tone="error" className={styles.loadMore} action={{ label: "Volver a intentar", onClick: () => void loadMore() }}>{moreError}</Notice>}
+          {status === "ready" && hasMore && <Button variant="secondary" block className={styles.loadMore} onClick={() => void loadMore()} loading={loadingMore}>
+            {loadingMore ? "Cargando…" : "Cargar más ofertas"}
+          </Button>}
+          {visibleResults.length > 0 && <p className={styles.statusLine}>Mostrando {offerCountLabel(visibleResults.length)}.</p>}
         </section>
       </div>
-      <footer className={styles.footer}>XFood <span>·</span> Aprovechar mejor, juntos.</footer>
     </main>
     {selected && <OfferDetailDialog listing={selected} loading={detailLoading} error={detailError} unavailable={detailUnavailable} onClose={closeDetail} />}
-  </div>;
+  </>;
 }
 
 type SearchState = ReturnType<typeof useListingSearch>["state"];
 
 function SearchResults({ state, onOpen, onRetry }: { state: SearchState; onOpen: Parameters<typeof OfferCard>[0]["onOpen"]; onRetry: () => void }) {
   const { location, options, optionsError, radiusKm, searchError, status, visibleResults } = state;
+  const retry = <Button variant="secondary" icon="refresh" onClick={onRetry}>Volver a intentar</Button>;
   if (location.kind === "manual") {
-    return <div className={styles.emptyState}><div className={styles.emptyIllustration}><span>⌖</span></div><h3>Elige un punto en el mapa</h3><p>{location.message}</p></div>;
+    return <EmptyState icon="locate" title="Elige un punto en el mapa">{location.message}</EmptyState>;
   }
   if (optionsError && !options) {
-    return <div className={styles.emptyState}><h3>No pudimos preparar la búsqueda</h3><p>Revisa la conexión e inténtalo de nuevo.</p>
-      <button className={styles.secondaryButton} onClick={onRetry}>Volver a intentar</button></div>;
+    return <EmptyState icon="alert" title="No pudimos preparar la búsqueda" action={retry}>Revisa la conexión e inténtalo de nuevo.</EmptyState>;
   }
-  if (location.kind === "locating" || status === "idle" || status === "loading") return <LoadingResults />;
+  if (location.kind === "locating" || status === "idle" || status === "loading") {
+    return <SkeletonCards className={styles.offerList} label="Cargando ofertas" media={false} />;
+  }
   if (status === "error") {
-    return <div className={styles.emptyState}><h3>No pudimos cargar las ofertas</h3><p>{searchError || "Revisa la conexión e inténtalo de nuevo."}</p>
-      <button className={styles.secondaryButton} onClick={onRetry}>Volver a intentar</button></div>;
+    return <EmptyState icon="alert" title="No pudimos cargar las ofertas" action={retry}>{searchError || "Revisa la conexión e inténtalo de nuevo."}</EmptyState>;
   }
   if (!visibleResults.length) {
-    return <div className={styles.emptyState}><div className={styles.emptyIllustration}><span>◌</span><i>✦</i></div><h3>No hay ofertas en este radio</h3>
-      <p>{radiusKm === options?.radiiKm.at(-1) ? "Prueba con otro punto del mapa o vuelve más tarde." : "Prueba con un radio mayor o con otro punto del mapa."}</p></div>;
+    return <EmptyState icon="search" title="No hay ofertas en este radio">
+      {radiusKm === options?.radiiKm.at(-1) ? "Prueba con otro punto del mapa o vuelve más tarde." : "Prueba con un radio mayor o con otro punto del mapa."}
+    </EmptyState>;
   }
-  return <div className={searchStyles.offerList}>{visibleResults.map((listing) => <OfferCard key={listing.id} listing={listing} onOpen={onOpen} />)}</div>;
-}
-
-function LoadingResults() {
-  return <div className={searchStyles.offerList} role="status" aria-label="Cargando ofertas" aria-busy="true">
-    {[1, 2, 3].map((item) => <div className={`${styles.skeleton} ${searchStyles.skeleton}`} key={item}><span /><span /></div>)}</div>;
+  return <div className={styles.offerList}>{visibleResults.map((listing) => <OfferCard key={listing.id} listing={listing} onOpen={onOpen} />)}</div>;
 }
 
 function locationLabel(location: SearchState["location"], picking: boolean) {

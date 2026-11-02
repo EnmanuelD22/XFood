@@ -1,4 +1,4 @@
-import styles from "@/app/page.module.css";
+import styles from "./panel.module.css";
 import { formatDate, formatMoney, getListingStatus } from "./format";
 import type { Category, Listing, VisibilityCheck } from "./types";
 
