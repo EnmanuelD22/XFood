@@ -10,7 +10,17 @@ npm ci
 npm run dev -- --experimental-https
 ```
 
-Usa Node.js 24 o posterior y abre `https://localhost:3000`. La cookie de sesión de la API es `Secure`, así que el flujo con sesión necesita HTTPS en desarrollo y una URL de API con certificado de confianza. Sin HTTPS, el login muestra un aviso que lo explica. No desactives la validación TLS: si Node no confía en la CA de desarrollo de la API, configura `NODE_EXTRA_CA_CERTS` con su archivo público antes de iniciar Next.js.
+Usa Node.js 24 o posterior y abre `https://localhost:3000`. La cookie de sesión de la API es `Secure`, así que el flujo con sesión necesita HTTPS en desarrollo y una URL de API con certificado de confianza. Sin HTTPS, el login muestra un aviso que lo explica.
+
+**En Windows**, arranca el frontend así para que Node confíe en el certificado de desarrollo de la API:
+
+```bash
+NODE_USE_SYSTEM_CA=1 npm run dev -- --experimental-https
+```
+
+El certificado de `dotnet dev-certs https --trust` queda en el almacén de certificados de Windows, pero Node usa por defecto su propia lista de autoridades y no lo ve: el proxy `/api/v1` falla al conectar con la API aunque el navegador la abra sin avisos. `NODE_USE_SYSTEM_CA=1` hace que Node use también el almacén del sistema. Esa sintaxis es la de Git Bash; en PowerShell usa `$env:NODE_USE_SYSTEM_CA=1; npm run dev -- --experimental-https`.
+
+No desactives la validación TLS (`NODE_TLS_REJECT_UNAUTHORIZED=0`). Si la CA de la API no está en el almacén del sistema, configura `NODE_EXTRA_CA_CERTS` con su archivo público antes de iniciar Next.js.
 
 ## Configuración
 
