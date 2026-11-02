@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useId, useState, type ComponentPropsWithRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { Icon, type IconName } from "./Icon";
 import styles from "./Field.module.css";
 
@@ -42,7 +42,7 @@ function Shell({ inputId, label, required, hint, hintId, error, errorId, classNa
   </div>;
 }
 
-type TextFieldProps = Common & Omit<InputHTMLAttributes<HTMLInputElement>, "className"> & {
+type TextFieldProps = Common & Omit<ComponentPropsWithRef<"input">, "className"> & {
   icon?: IconName;
   /** Adds a show/hide control to password inputs. */
   revealable?: boolean;

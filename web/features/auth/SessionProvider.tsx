@@ -15,6 +15,8 @@ type SessionContextValue = {
   session: SessionState;
   /** Asks `GET /me` again; the HttpOnly cookie is the only source of truth. */
   refresh: () => Promise<Account | null>;
+  /** Like `refresh`, but rejects with the API error so the caller can explain it (used right after login). */
+  confirm: () => Promise<Account>;
   signOut: () => Promise<void>;
 };
 
@@ -48,6 +50,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return check();
   }, [check]);
 
+  const confirm = useCallback(async () => {
+    request.current?.abort();
+    const account = await getCurrentAccount();
+    setSession({ status: "authenticated", account });
+    return account;
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       await logout();
@@ -64,7 +73,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => request.current?.abort();
   }, [check]);
 
-  const value = useMemo(() => ({ session, refresh, signOut }), [session, refresh, signOut]);
+  const value = useMemo(() => ({ session, refresh, confirm, signOut }), [session, refresh, confirm, signOut]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
